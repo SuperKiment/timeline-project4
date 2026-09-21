@@ -34,7 +34,7 @@ files: src/lib/server/config.ts, src/lib/server/config.test.ts, .env.example
 do: Export `getConfig()` reading process.env: `HOST` (default `0.0.0.0`), `PORT` (3000), `ORIGIN` (optional), `DATA_DIR` (default `./data`, resolved absolute), `TZ` (default `Europe/Paris`), `BACKUP_DIR` (default `./backups`), `SESSION_DAYS` (30). Derived paths: `dbPath = DATA_DIR/timeline.sqlite`, `mediaDir = DATA_DIR/media`, `tmpDir = DATA_DIR/tmp`. `.env.example` documents all plus `BODY_SIZE_LIMIT=Infinity` and `PROTOCOL_HEADER`/`HOST_HEADER` for reverse proxy.
 exit: `npx vitest run src/lib/server/config.test.ts` passes (defaults + overrides, FR-29).
 
-### T3: Drizzle schema, DB client, migrations incl. FTS5  [todo]  (lite: no)
+### T3: Drizzle schema, DB client, migrations incl. FTS5  [done]  (lite: no)
 deps: T2
 files: src/lib/server/db/schema.ts, src/lib/server/db/index.ts, src/lib/server/db/migrate.ts, src/lib/server/db/test-db.ts, src/lib/server/db/db.test.ts, drizzle.config.ts, drizzle/** (generated SQL + meta), scripts/migrate.ts
 do: Tables: `users`(id, username unique, display_name, password_hash, created_at); `sessions`(id=token sha256 hex PK, user_id FK cascade, expires_at); `entries`(id, type enum souvenir|important|phase|recurrent|histoire, title not null, description, location, tags TEXT JSON array default '[]', start_sort, start_precision, end_sort null, end_precision null, recurrence_freq yearly|monthly null, seed_key unique null, created_by FK users set null, created_at, updated_by, updated_at, deleted_at null, index on start_sort); `occurrence_notes`(id, series_id FK entries cascade, occurrence_date, note, created_by, created_at, updated_by, updated_at, unique(series_id, occurrence_date)); `journal_entries`(id, user_id FK cascade, day, text, mood, created_at, updated_at, deleted_at, partial unique index (user_id, day) WHERE deleted_at IS NULL); `media`(id, entry_id/occurrence_note_id/journal_entry_id FKs cascade with CHECK exactly one non-null, kind photo|video, mime, stored_name, thumb_name null, poster_name null, size, width null, height null, original_name, created_by, created_at, deleted_at). Generate migration 0000, then a custom migration (`drizzle-kit generate --custom`) creating FTS5 external-content tables `entries_fts(title, description, location, tags)` and `journal_fts(text)` with insert/update/delete sync triggers. `index.ts`: `createDb(path)` sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`; `getDb()` lazy singleton on `config.dbPath` (mkdir DATA_DIR); export `type Db`. `migrate.ts`: `runMigrations(db)` using drizzle migrator on `./drizzle`. `test-db.ts`: `createTestDb()` in-memory + migrated.
@@ -97,7 +97,7 @@ exit: `npx vitest run src/lib/server/seed` passes: two runs → same count of hi
 ### T13: Timeline query and shared item types  [todo]  (lite: no)
 deps: T3, T4, T5
 files: src/lib/timeline/types.ts, src/lib/server/timeline/query.ts, src/lib/server/timeline/query.test.ts
-do: `types.ts` (client-safe): `EntryType`, `TimelineItem = { kind: 'entry'|'occurrence'; id; type; title; startSort; startPrecision; endSort|null; endPrecision|null; ongoing: boolean; seriesId?; occurrenceDate?; hasNote?; thumbUrl|null; location|null }`. `getTimeline(db, { types: EntryType[], today })`: visible entries (deleted_at null) of selected types, recurrent series expanded into occurrence items up to today/end (series row itself not emitted), `ongoing` for open phases/histoire (EC-1), first visible photo thumb `/media/<id>/thumb`, sorted by sort key then created_at, id. Only needed columns selected.
+do: (NOTE from B3 fixes: `src/lib/timeline/types.ts` already exists exporting `ENTRY_TYPES` + `EntryType` (imported by db/schema.ts) — extend it, do not redefine.) `types.ts` (client-safe): `EntryType`, `TimelineItem = { kind: 'entry'|'occurrence'; id; type; title; startSort; startPrecision; endSort|null; endPrecision|null; ongoing: boolean; seriesId?; occurrenceDate?; hasNote?; thumbUrl|null; location|null }`. `getTimeline(db, { types: EntryType[], today })`: visible entries (deleted_at null) of selected types, recurrent series expanded into occurrence items up to today/end (series row itself not emitted), `ongoing` for open phases/histoire (EC-1), first visible photo thumb `/media/<id>/thumb`, sorted by sort key then created_at, id. Only needed columns selected.
 exit: `npx vitest run src/lib/server/timeline` passes: ordering per EC-3; type filter works; deleted entries absent (EC-16); perf test with 2 000 entries + monthly series over 10 years returns in < 300 ms (NFR-2, FR-9/10/11 data).
 
 ### T14: Journal service  [todo]  (lite: no)
@@ -109,7 +109,7 @@ exit: `npx vitest run src/lib/server/journal` passes: A and B write same day →
 ### T15: Full-text search service  [todo]  (lite: no)
 deps: T3
 files: src/lib/server/search/service.ts, src/lib/server/search/service.test.ts
-do: `toFtsQuery(input)`: split on whitespace, strip `"` and FTS operators, drop empty tokens, each token → `"token"*`, joined with space; empty → null (return []). `search(db, q, limit=50)`: union of `entries_fts` hits joined to visible entries → `{kind:'entry', id, title, snippet, url:'/entries/<id>'}` and `journal_fts` hits joined to visible journal entries → `{kind:'journal', day, author, snippet, url:'/journal/<day>'}`, ranked by bm25. Use parameterized SQL (`sql` template).
+do: (SECURITY, from B3 review: FTS tables are external-content and still contain soft-deleted rows — every search query MUST join back to base tables with `deleted_at IS NULL` (entries, journal_entries; media not indexed). Journal is shared per FR-16 so both users may see both journals, but never return deleted rows.) `toFtsQuery(input)`: split on whitespace, strip `"` and FTS operators, drop empty tokens, each token → `"token"*`, joined with space; empty → null (return []). `search(db, q, limit=50)`: union of `entries_fts` hits joined to visible entries → `{kind:'entry', id, title, snippet, url:'/entries/<id>'}` and `journal_fts` hits joined to visible journal entries → `{kind:'journal', day, author, snippet, url:'/journal/<day>'}`, ranked by bm25. Use parameterized SQL (`sql` template).
 exit: `npx vitest run src/lib/server/search` passes: word in one journal + one description → 2 results; input `"*-` and `a" OR -b*` → no throw, [] (AC-9, EC-15); soft-deleted entry not found (EC-16, AC-8).
 
 ### T16: "Ce jour-là" service  [todo]  (lite: no)
@@ -118,13 +118,13 @@ files: src/lib/server/onthisday/service.ts, src/lib/server/onthisday/service.tes
 do: `onThisDay(db, today)` → `{ year, items: ({kind:'entry', id, type, title} | {kind:'occurrence', seriesId, date, title, note} | {kind:'journal', day, author, excerpt})[] }[]` for years < current year, grouped by year desc: visible souvenir/important with day precision and same MM-DD; occurrences of visible recurrent series landing on that MM-DD (use `occurrenceOn`, respects 29/02→28/02); visible journal entries with same MM-DD. `today` param comes from `todayIn(tz)`.
 exit: `npx vitest run src/lib/server/onthisday` passes: seeded data on same DD/MM across 3 past years grouped by year; month-precision souvenir excluded; deleted excluded; empty → [] (FR-20, AC-10, EC-16, EC-18).
 
-### T17: Media validation, image processing, storage paths  [todo]  (lite: no)
+### T17: Media validation, image processing, storage paths  [done]  (lite: no)
 deps: T2
 files: src/lib/server/media/validate.ts, src/lib/server/media/images.ts, src/lib/server/media/storage.ts, src/lib/server/media/images.test.ts, tests/fixtures/photo-exif-rotated.jpg, tests/fixtures/photo.heic, tests/fixtures/fake.jpg, tests/fixtures/README.md
 do: `validate.ts`: allowed map ext→mime (jpg/jpeg, png, webp, heic/heif, mp4, mov→video/quicktime, webm); `sniffAndValidate(filePath, clientName)` uses `file-type` and rejects unsupported or ext/MIME mismatch with French messages; `MAX_BYTES = 500*1024*1024`. `storage.ts`: `newStoredName(ext)` (crypto random hex, no client name), `mediaPath(name)` with guard that resolved path stays inside `mediaDir` (NFR-4), `removeMediaFiles(row)` ignoring ENOENT. `images.ts`: `processPhoto(tmpPath, mime)` → HEIC via heic-convert → JPEG (clear `MediaError('HEIC illisible')` on failure, EC-10); `sharp().rotate()` for EXIF, write original (JPEG for HEIC) + 400px-wide WebP thumb; return width/height. Fixtures: JPEG with EXIF orientation 6 generated via sharp; HEIC produced with `heif-enc` (libheif-examples) from a JPEG if available, else a public-domain sample with source URL recorded in tests/fixtures/README.md; fake.jpg = text bytes.
 exit: `npx vitest run src/lib/server/media/images.test.ts` passes: rotated JPEG thumb has swapped dimensions; HEIC → JPEG output; fake.jpg rejected; `mediaPath('../x')` throws (FR-21, FR-22, FR-23, EC-9, EC-10).
 
-### T18: Video poster via optional ffmpeg  [todo]  (lite: yes)
+### T18: Video poster via optional ffmpeg  [done]  (lite: yes)
 deps: T2
 files: src/lib/server/media/video.ts, src/lib/server/media/video.test.ts, tests/fixtures/video.mp4
 do: `hasFfmpeg()` cached (`spawn('ffmpeg', ['-version'])`, false on ENOENT). `makePoster(videoPath, outPath): Promise<boolean>` → extract frame at 1s (fallback 0s) as JPEG 400px wide; returns false (never throws) if ffmpeg missing/fails. Fixture: 2-second 320x240 MP4 generated with `ffmpeg -f lavfi -i testsrc=duration=2:size=320x240:rate=10 -pix_fmt yuv420p`.
@@ -145,7 +145,7 @@ exit: `npx vitest run src/lib/server/media/serve.test.ts` passes: `bytes=0-99` �
 ### T21: Trash service and scheduled purge  [todo]  (lite: no)
 deps: T9, T17
 files: src/lib/server/trash/service.ts, src/lib/server/trash/service.test.ts, src/lib/server/startup.ts
-do: `listTrash(db)` → top-level deleted items (entries incl. series, journal entries, media) with title/label, deletedAt, `expiresAt = deletedAt + 30d`. `restore(db, kind, id, userId)` clears deleted_at (journal: author only → 403). `purgeItem(db, kind, id, userId)`: collect all media rows under the item (direct + occurrence notes + journal), delete DB row in transaction (cascade), then `removeMediaFiles`. `purgeExpired(db, now)` purges items with deleted_at < now − 30 days. In `startup.ts` add: call `purgeExpired` at startup and `setInterval` every 24h (unref'd).
+do: (NOTE from B3 review: journal_entries has a partial unique index (user_id, day) WHERE deleted_at IS NULL — restoring a soft-deleted journal entry when the author already wrote a new one for that day must be detected and refused with a 409 + French message, not a 500; test it.) `listTrash(db)` → top-level deleted items (entries incl. series, journal entries, media) with title/label, deletedAt, `expiresAt = deletedAt + 30d`. `restore(db, kind, id, userId)` clears deleted_at (journal: author only → 403). `purgeItem(db, kind, id, userId)`: collect all media rows under the item (direct + occurrence notes + journal), delete DB row in transaction (cascade), then `removeMediaFiles`. `purgeExpired(db, now)` purges items with deleted_at < now − 30 days. In `startup.ts` add: call `purgeExpired` at startup and `setInterval` every 24h (unref'd).
 exit: `npx vitest run src/lib/server/trash` passes with injected clock: item deleted 31 days ago purged (row + files on disk gone), 29-day item kept; restoring a series restores its occurrence notes/media visibility (EC-5, AC-8, FR-24).
 
 ### T22: Backup command  [todo]  (lite: no)
@@ -172,7 +172,7 @@ files: static/manifest.webmanifest, static/icons/icon-192.png, static/icons/icon
 do: Manifest: name "Notre timeline", short_name "Timeline", lang fr, start_url "/", display standalone, theme/background colors matching app.css, 3 icons (generate PNGs with a one-off sharp command, commit outputs). Service worker (`$service-worker` build + files): cache static assets on install, cache-first only for those URLs, network for everything else; delete old caches on activate.
 exit: `npm run test:e2e -- e2e/pwa.spec.ts` passes: `/manifest.webmanifest` 200 unauthenticated with display=standalone; on localhost `navigator.serviceWorker.ready` resolves on /login (FR-28, AC-13).
 
-### T26: Fuzzy date input component and form helpers  [todo]  (lite: no)
+### T26: Fuzzy date input component and form helpers  [done]  (lite: no)
 deps: T4
 files: src/lib/dates/fuzzy-form.ts, src/lib/dates/fuzzy-form.test.ts, src/lib/components/FuzzyDateInput.svelte
 do: `fuzzy-form.ts`: `parseFuzzyFormFields({precision, year, month, day})` → FuzzyDate|error (French), `fuzzyToFormFields`. Component (Svelte 5 runes, props `name`, `value`, `label`, `required`, `allowedPrecisions`): precision segmented control (Jour/Mois/Année), year number input, month `<select>` French months, day input; hidden inputs `<name>_precision/_year/_month/_day`; mobile-friendly (inputmode numeric, 44px).
@@ -261,6 +261,13 @@ deps: T23, T25, T30, T33, T34, T35, T36, T37, T38, T39
 files: e2e/responsive.spec.ts, e2e/export.spec.ts
 do: responsive.spec (mobile project, viewport 375x812): for /, /journal, /journal/calendrier, /ce-jour-la, /recherche, /corbeille, /parametres, /entries/new, an entry detail: assert `document.documentElement.scrollWidth <= 375` and all visible buttons/links have bounding height ≥ 44. export.spec: download from Paramètres → JSON.parse ok with `entries` array. Fix any lint/check/test failures found (touch only the failing files; record them in the task report).
 exit: `npm install && npm run build && npm run check && npm run lint && npm test && npm run test:e2e` all pass (AC-1, AC-12, AC-13, NFR-1, NFR-5, NFR-6).
+
+## Follow-ups (from reviews, non-blocking)
+
+- F1 (B3 design W): `src/lib/server/db/schema.ts` CHECK constraints (entry type, start/end precision, media kind) hard-code literals — build from `ENTRY_TYPES`/`PRECISIONS`/`MEDIA_KINDS` via `sql.raw`, confirm `drizzle-kit generate` output is equivalent (no-op or harmless rebuild migration).
+- F2 (B3 N): drop unused `export type { MediaKind }` re-export in `src/lib/server/media/validate.ts`; inline `resolveInitialFields` in FuzzyDateInput.
+- F3 (B3 media): no explicit test for >50 MP HEIC rejection (no HEIC encoder available to build fixture) — add one via synthetic fixture or metadata stub.
+- F4 (B3 bug W, do with T19): `src/lib/server/media/images.ts` `isDecodeError` maps libvips WRITE failures (ENOSPC comes back without `err.code`, message "No space left on device") to `MediaError('Image illisible.')` → T19 cannot return 507 (EC-12). Fix: decode source first (`clone().toBuffer()`/`metadata()`) inside the MediaError mapping, write files outside it; or detect `/No space left on device/`.
 
 ## OPEN (decisions needing the user — plan is blocked on these)
 

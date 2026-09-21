@@ -1,0 +1,667 @@
+{
+	"version": "6",
+	"dialect": "sqlite",
+	"id": "845c0bdb-e81a-4b1f-acaf-18c95cd8e2a3",
+	"prevId": "00000000-0000-0000-0000-000000000000",
+	"tables": {
+		"entries": {
+			"name": "entries",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "integer",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": true
+				},
+				"type": {
+					"name": "type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"title": {
+					"name": "title",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"description": {
+					"name": "description",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"location": {
+					"name": "location",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"tags": {
+					"name": "tags",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "'[]'"
+				},
+				"start_sort": {
+					"name": "start_sort",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"start_precision": {
+					"name": "start_precision",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"end_sort": {
+					"name": "end_sort",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"end_precision": {
+					"name": "end_precision",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"recurrence_freq": {
+					"name": "recurrence_freq",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"seed_key": {
+					"name": "seed_key",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"created_by": {
+					"name": "created_by",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updated_by": {
+					"name": "updated_by",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"deleted_at": {
+					"name": "deleted_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"entries_seed_key_unique": {
+					"name": "entries_seed_key_unique",
+					"columns": ["seed_key"],
+					"isUnique": true
+				},
+				"entries_start_sort_idx": {
+					"name": "entries_start_sort_idx",
+					"columns": ["start_sort"],
+					"isUnique": false
+				},
+				"entries_type_idx": {
+					"name": "entries_type_idx",
+					"columns": ["type"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {
+				"entries_created_by_users_id_fk": {
+					"name": "entries_created_by_users_id_fk",
+					"tableFrom": "entries",
+					"tableTo": "users",
+					"columnsFrom": ["created_by"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				},
+				"entries_updated_by_users_id_fk": {
+					"name": "entries_updated_by_users_id_fk",
+					"tableFrom": "entries",
+					"tableTo": "users",
+					"columnsFrom": ["updated_by"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {
+				"entries_type_check": {
+					"name": "entries_type_check",
+					"value": "\"entries\".\"type\" in ('souvenir','important','phase','recurrent','histoire')"
+				},
+				"entries_start_precision_check": {
+					"name": "entries_start_precision_check",
+					"value": "\"entries\".\"start_precision\" in ('day','month','year')"
+				},
+				"entries_end_precision_check": {
+					"name": "entries_end_precision_check",
+					"value": "\"entries\".\"end_precision\" is null or \"entries\".\"end_precision\" in ('day','month','year')"
+				},
+				"entries_recurrence_freq_check": {
+					"name": "entries_recurrence_freq_check",
+					"value": "\"entries\".\"recurrence_freq\" is null or \"entries\".\"recurrence_freq\" in ('yearly','monthly')"
+				}
+			}
+		},
+		"journal_entries": {
+			"name": "journal_entries",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "integer",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": true
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"day": {
+					"name": "day",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"text": {
+					"name": "text",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "''"
+				},
+				"mood": {
+					"name": "mood",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"deleted_at": {
+					"name": "deleted_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"journal_entries_user_day_idx": {
+					"name": "journal_entries_user_day_idx",
+					"columns": ["user_id", "day"],
+					"isUnique": true,
+					"where": "\"journal_entries\".\"deleted_at\" is null"
+				}
+			},
+			"foreignKeys": {
+				"journal_entries_user_id_users_id_fk": {
+					"name": "journal_entries_user_id_users_id_fk",
+					"tableFrom": "journal_entries",
+					"tableTo": "users",
+					"columnsFrom": ["user_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"media": {
+			"name": "media",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "integer",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": true
+				},
+				"entry_id": {
+					"name": "entry_id",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"occurrence_note_id": {
+					"name": "occurrence_note_id",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"journal_entry_id": {
+					"name": "journal_entry_id",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"kind": {
+					"name": "kind",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"mime": {
+					"name": "mime",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"stored_name": {
+					"name": "stored_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"thumb_name": {
+					"name": "thumb_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"poster_name": {
+					"name": "poster_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"size": {
+					"name": "size",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"width": {
+					"name": "width",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"height": {
+					"name": "height",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"original_name": {
+					"name": "original_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"created_by": {
+					"name": "created_by",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"deleted_at": {
+					"name": "deleted_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"media_entry_idx": {
+					"name": "media_entry_idx",
+					"columns": ["entry_id"],
+					"isUnique": false
+				},
+				"media_occurrence_note_idx": {
+					"name": "media_occurrence_note_idx",
+					"columns": ["occurrence_note_id"],
+					"isUnique": false
+				},
+				"media_journal_entry_idx": {
+					"name": "media_journal_entry_idx",
+					"columns": ["journal_entry_id"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {
+				"media_entry_id_entries_id_fk": {
+					"name": "media_entry_id_entries_id_fk",
+					"tableFrom": "media",
+					"tableTo": "entries",
+					"columnsFrom": ["entry_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"media_occurrence_note_id_occurrence_notes_id_fk": {
+					"name": "media_occurrence_note_id_occurrence_notes_id_fk",
+					"tableFrom": "media",
+					"tableTo": "occurrence_notes",
+					"columnsFrom": ["occurrence_note_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"media_journal_entry_id_journal_entries_id_fk": {
+					"name": "media_journal_entry_id_journal_entries_id_fk",
+					"tableFrom": "media",
+					"tableTo": "journal_entries",
+					"columnsFrom": ["journal_entry_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"media_created_by_users_id_fk": {
+					"name": "media_created_by_users_id_fk",
+					"tableFrom": "media",
+					"tableTo": "users",
+					"columnsFrom": ["created_by"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {
+				"media_kind_check": {
+					"name": "media_kind_check",
+					"value": "\"media\".\"kind\" in ('photo','video')"
+				},
+				"media_one_owner_check": {
+					"name": "media_one_owner_check",
+					"value": "(\n\t\t\t\t(case when \"media\".\"entry_id\" is not null then 1 else 0 end) +\n\t\t\t\t(case when \"media\".\"occurrence_note_id\" is not null then 1 else 0 end) +\n\t\t\t\t(case when \"media\".\"journal_entry_id\" is not null then 1 else 0 end)\n\t\t\t) = 1"
+				}
+			}
+		},
+		"occurrence_notes": {
+			"name": "occurrence_notes",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "integer",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": true
+				},
+				"series_id": {
+					"name": "series_id",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"occurrence_date": {
+					"name": "occurrence_date",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"note": {
+					"name": "note",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"created_by": {
+					"name": "created_by",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updated_by": {
+					"name": "updated_by",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"deleted_at": {
+					"name": "deleted_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"occurrence_notes_series_date_idx": {
+					"name": "occurrence_notes_series_date_idx",
+					"columns": ["series_id", "occurrence_date"],
+					"isUnique": true
+				}
+			},
+			"foreignKeys": {
+				"occurrence_notes_series_id_entries_id_fk": {
+					"name": "occurrence_notes_series_id_entries_id_fk",
+					"tableFrom": "occurrence_notes",
+					"tableTo": "entries",
+					"columnsFrom": ["series_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"occurrence_notes_created_by_users_id_fk": {
+					"name": "occurrence_notes_created_by_users_id_fk",
+					"tableFrom": "occurrence_notes",
+					"tableTo": "users",
+					"columnsFrom": ["created_by"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				},
+				"occurrence_notes_updated_by_users_id_fk": {
+					"name": "occurrence_notes_updated_by_users_id_fk",
+					"tableFrom": "occurrence_notes",
+					"tableTo": "users",
+					"columnsFrom": ["updated_by"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"sessions": {
+			"name": "sessions",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"expires_at": {
+					"name": "expires_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"sessions_user_id_users_id_fk": {
+					"name": "sessions_user_id_users_id_fk",
+					"tableFrom": "sessions",
+					"tableTo": "users",
+					"columnsFrom": ["user_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"users": {
+			"name": "users",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "integer",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": true
+				},
+				"username": {
+					"name": "username",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"display_name": {
+					"name": "display_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"password_hash": {
+					"name": "password_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"users_username_unique": {
+					"name": "users_username_unique",
+					"columns": ["username"],
+					"isUnique": true
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		}
+	},
+	"views": {},
+	"enums": {},
+	"_meta": {
+		"schemas": {},
+		"tables": {},
+		"columns": {}
+	},
+	"internal": {
+		"indexes": {}
+	}
+}

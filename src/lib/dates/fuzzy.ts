@@ -3,7 +3,8 @@
  * Pure functions, no Node APIs — safe to import from anywhere (client or server).
  */
 
-export type Precision = 'day' | 'month' | 'year';
+export const PRECISIONS = ['day', 'month', 'year'] as const;
+export type Precision = (typeof PRECISIONS)[number];
 
 export interface FuzzyDate {
 	year: number;
