@@ -28,7 +28,7 @@ files: package.json, package-lock.json, tsconfig.json, svelte.config.js, vite.co
 do: `git init`; scaffold SvelteKit minimal TS (`npx sv create` or by hand) with `@sveltejs/adapter-node`, TS `strict: true`, ESLint (flat config, svelte + ts) + Prettier, Vitest (in vite.config.ts `test.include: ['src/**/*.test.ts']`, env node), Playwright (projects `desktop`/`mobile`, webServer placeholder `npm run build && node build` on port 4173). Install deps now so later tasks never touch package.json deps: drizzle-orm, better-sqlite3, @node-rs/argon2, sharp, heic-convert, file-type, busboy, marked, sanitize-html, tar, tsx (runtime deps); drizzle-kit, @types/better-sqlite3, @types/busboy, @types/sanitize-html (dev). Scripts: dev, build, preview, start (`node build`), check, lint, format, test (`vitest run`), test:e2e (`playwright test`), db:generate (`drizzle-kit generate`), db:migrate (`tsx scripts/migrate.ts`), user:create (`tsx scripts/user-create.ts`), seed (`tsx scripts/seed.ts`), backup (`tsx scripts/backup.ts`). `.gitignore`: node_modules, build, .svelte-kit, data/, backups/, .e2e-data/, .env, test-results/, playwright-report/. `app.html` `lang="fr"`, `<link rel="manifest" href="/manifest.webmanifest">`, `<meta name="theme-color">`, viewport meta. `app.d.ts`: `App.Locals { user: { id: number; username: string; displayName: string } | null; sessionId: string | null }`. `app.css`: CSS variables light/dark via `prefers-color-scheme`, base font, `button, a.btn, input, select { min-height: 44px }`. Keep `kit.csrf.checkOrigin` default (true).
 exit: `npm install && npm run build && npm run check && npm run lint && npm test` all pass (smoke test asserts 1+1); `git status` shows a repo; `grep -q '^data/' .gitignore` (AC-1 groundwork, NFR-5/6).
 
-### T2: Env configuration module  [todo]  (lite: yes)
+### T2: Env configuration module  [done]  (lite: yes)
 deps: T1
 files: src/lib/server/config.ts, src/lib/server/config.test.ts, .env.example
 do: Export `getConfig()` reading process.env: `HOST` (default `0.0.0.0`), `PORT` (3000), `ORIGIN` (optional), `DATA_DIR` (default `./data`, resolved absolute), `TZ` (default `Europe/Paris`), `BACKUP_DIR` (default `./backups`), `SESSION_DAYS` (30). Derived paths: `dbPath = DATA_DIR/timeline.sqlite`, `mediaDir = DATA_DIR/media`, `tmpDir = DATA_DIR/tmp`. `.env.example` documents all plus `BODY_SIZE_LIMIT=Infinity` and `PROTOCOL_HEADER`/`HOST_HEADER` for reverse proxy.
@@ -40,25 +40,25 @@ files: src/lib/server/db/schema.ts, src/lib/server/db/index.ts, src/lib/server/d
 do: Tables: `users`(id, username unique, display_name, password_hash, created_at); `sessions`(id=token sha256 hex PK, user_id FK cascade, expires_at); `entries`(id, type enum souvenir|important|phase|recurrent|histoire, title not null, description, location, tags TEXT JSON array default '[]', start_sort, start_precision, end_sort null, end_precision null, recurrence_freq yearly|monthly null, seed_key unique null, created_by FK users set null, created_at, updated_by, updated_at, deleted_at null, index on start_sort); `occurrence_notes`(id, series_id FK entries cascade, occurrence_date, note, created_by, created_at, updated_by, updated_at, unique(series_id, occurrence_date)); `journal_entries`(id, user_id FK cascade, day, text, mood, created_at, updated_at, deleted_at, partial unique index (user_id, day) WHERE deleted_at IS NULL); `media`(id, entry_id/occurrence_note_id/journal_entry_id FKs cascade with CHECK exactly one non-null, kind photo|video, mime, stored_name, thumb_name null, poster_name null, size, width null, height null, original_name, created_by, created_at, deleted_at). Generate migration 0000, then a custom migration (`drizzle-kit generate --custom`) creating FTS5 external-content tables `entries_fts(title, description, location, tags)` and `journal_fts(text)` with insert/update/delete sync triggers. `index.ts`: `createDb(path)` sets `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`; `getDb()` lazy singleton on `config.dbPath` (mkdir DATA_DIR); export `type Db`. `migrate.ts`: `runMigrations(db)` using drizzle migrator on `./drizzle`. `test-db.ts`: `createTestDb()` in-memory + migrated.
 exit: `npm run db:migrate` creates `data/timeline.sqlite`; `npx vitest run src/lib/server/db` passes asserting WAL (file DB), `PRAGMA foreign_keys=1`, FTS row appears after entry insert and disappears after delete, media CHECK rejects two owners (NFR-3).
 
-### T4: Fuzzy date library  [todo]  (lite: no)
+### T4: Fuzzy date library  [done]  (lite: no)
 deps: T1
 files: src/lib/dates/fuzzy.ts, src/lib/dates/fuzzy.test.ts
 do: Type `Precision = 'day'|'month'|'year'`, `FuzzyDate { year; month?; day?; precision }`. Functions: `toSortKey`, `fromSortKey`, `isValidFuzzy`, `firstDay(fd)`/`lastDay(fd)` (ISO day), `compareSortKeys`, `formatFr(fd)` ("12 mars 2018" / "mars 2018" / "2018", French month names), `isPeriodValid(start, end)` per Conventions, `containsDay(start, end|null, isoDay, today)`. Pure, no Node APIs.
 exit: `npx vitest run src/lib/dates/fuzzy.test.ts` passes incl. EC-3 ordering "2018" < "mars 2018" < "12/03/2018", leap-year lastDay(Feb 2024)=2024-02-29, invalid dates rejected (AC-4, FR-5, EC-2).
 
-### T5: Recurrence occurrence generator  [todo]  (lite: no)
+### T5: Recurrence occurrence generator  [done]  (lite: no)
 deps: T1
 files: src/lib/dates/recurrence.ts, src/lib/dates/recurrence.test.ts
-do: `occurrences(originIso, freq: 'yearly'|'monthly', untilIso): string[]` inclusive of origin, stops at min(end, until). Monthly: day clamped to last day of month (31 → 30/28/29), always computed from origin day (not cumulative clamping). Yearly 29/02 → 28/02 in non-leap years. Also `occurrenceOn(originIso, freq, isoDay, endIso|null): boolean` for Ce jour-là. Pure functions.
+do: `occurrences(originIso, freq: 'yearly'|'monthly', endIso: string|null, untilIso): string[]` inclusive of origin, stops at min(end, until). Monthly: day clamped to last day of month (31 → 30/28/29), always computed from origin day (not cumulative clamping). Yearly 29/02 → 28/02 in non-leap years. Also `occurrenceOn(originIso, freq, isoDay, endIso|null): boolean` for Ce jour-là. Pure functions.
 exit: `npx vitest run src/lib/dates/recurrence.test.ts` passes: monthly from 2024-01-31 gives 2024-02-29, 2024-03-31, 2024-04-30; yearly 2020-02-29 gives 2021-02-28, 2024-02-29; end date respected; 10 years monthly = 121 items (AC-4, EC-4, FR-7).
 
-### T6: Timezone-aware "today" helpers  [todo]  (lite: yes)
+### T6: Timezone-aware "today" helpers  [done]  (lite: yes)
 deps: T1
 files: src/lib/server/time.ts, src/lib/server/time.test.ts
 do: `todayIn(tz: string, now = new Date()): string` via `Intl.DateTimeFormat('en-CA', { timeZone })`; `isFutureDay(isoDay, tz, now)`; `monthDay(isoDay)` → `MM-DD`. `now` injectable for tests.
 exit: `npx vitest run src/lib/server/time.test.ts` passes: `2026-01-01T23:30:00Z` → `2026-01-02` in Europe/Paris and `2026-01-01` in UTC (EC-18).
 
-### T7: Safe markdown renderer  [todo]  (lite: yes)
+### T7: Safe markdown renderer  [done]  (lite: yes)
 deps: T1
 files: src/lib/server/markdown.ts, src/lib/server/markdown.test.ts
 do: `renderMarkdown(src: string): string` using `marked` (no raw HTML passthrough trust) then `sanitize-html` allowlist: p, br, strong, em, ul, ol, li, blockquote, code, pre, a[href, rel, target] (http/https/mailto only), h3-h6; force `rel="noopener noreferrer"`.
