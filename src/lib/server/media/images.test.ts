@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
 import type { SniffResult } from './validate';
 
@@ -197,5 +197,53 @@ describe('processPhoto', () => {
 		await fs.writeFile(emptyPath, Buffer.alloc(0));
 
 		await expect(processPhoto(emptyPath, PNG_SNIFF)).rejects.toThrow(MediaError);
+	});
+
+	it('rejects a photo over MAX_PHOTO_BYTES before reading it, writing nothing', async () => {
+		const { processPhoto, MAX_PHOTO_BYTES } = await import('./images');
+		const { MediaError } = await import('./validate');
+		const { ensureMediaDir } = await import('./storage');
+		const { getConfig } = await import('../config');
+
+		// Sparse file: no real 50 MB on disk.
+		const bigPath = path.join(dataDir, 'big.jpg');
+		await fs.writeFile(bigPath, Buffer.alloc(0));
+		await fs.truncate(bigPath, MAX_PHOTO_BYTES + 1);
+
+		const readSpy = vi.spyOn(fs, 'readFile');
+		try {
+			for (const sniff of [JPEG_SNIFF, HEIC_SNIFF]) {
+				await expect(processPhoto(bigPath, sniff)).rejects.toThrow(MediaError);
+				await expect(processPhoto(bigPath, sniff)).rejects.toThrow(/Photo trop volumineuse/);
+				await expect(processPhoto(bigPath, sniff)).rejects.toMatchObject({ status: 413 });
+			}
+			expect(readSpy).not.toHaveBeenCalled();
+		} finally {
+			readSpy.mockRestore();
+		}
+
+		await ensureMediaDir();
+		expect(await fs.readdir(getConfig().mediaDir)).toEqual([]);
+	});
+
+	it('propagates a disk write failure unchanged instead of reporting "Image illisible." (F4, EC-12)', async () => {
+		const { processPhoto } = await import('./images');
+		const { MediaError } = await import('./validate');
+		const { promises: fsPromises } = await import('node:fs');
+
+		// Mirrors the libvips/ENOSPC quirk from F4: a plain `Error`, no `code`
+		// property, message "No space left on device". Even in that shape it
+		// must never be mistaken for a source decode failure: the caller (T19)
+		// needs to tell it apart to return 507.
+		const diskFullError = new Error('No space left on device');
+		const writeSpy = vi.spyOn(fsPromises, 'writeFile').mockRejectedValueOnce(diskFullError);
+
+		try {
+			const promise = processPhoto(path.join(FIXTURES, 'photo-exif-rotated.jpg'), JPEG_SNIFF);
+			await expect(promise).rejects.toBe(diskFullError);
+			await expect(promise).rejects.not.toBeInstanceOf(MediaError);
+		} finally {
+			writeSpy.mockRestore();
+		}
 	});
 });

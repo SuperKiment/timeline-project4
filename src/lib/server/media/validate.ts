@@ -3,7 +3,15 @@ import { fileTypeFromFile } from 'file-type';
 import type { MediaKind } from '../db/schema';
 
 /** Raised for any media rejection the caller should surface to the user (French message). */
-export class MediaError extends Error {}
+export class MediaError extends Error {
+	constructor(
+		message: string,
+		readonly status: 413 | 415 = 415
+	) {
+		super(message);
+		this.name = 'MediaError';
+	}
+}
 
 export type { MediaKind };
 

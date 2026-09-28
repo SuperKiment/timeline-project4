@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs';
-import sharp, { type Sharp } from 'sharp';
+import sharp, { type OutputInfo, type Sharp } from 'sharp';
 // heic-convert ships no type declarations.
 // @ts-expect-error - untyped module, see comment above
 import heicConvert from 'heic-convert';
@@ -10,6 +10,9 @@ const THUMB_WIDTH = 400;
 
 /** Decompression-bomb guard: reject images (or HEIC sources) above this pixel count. */
 const MAX_PIXELS = 50_000_000;
+
+/** Maximum size in bytes of a photo source file (checked before any read/decode). */
+export const MAX_PHOTO_BYTES = 50 * 1024 * 1024;
 
 type PhotoExt = 'jpg' | 'png' | 'webp';
 
@@ -22,15 +25,6 @@ function encode(pipeline: Sharp, ext: PhotoExt): Sharp {
 		case 'webp':
 			return pipeline.webp({ quality: 90 });
 	}
-}
-
-/**
- * Whether `err` looks like a sharp/libvips decode failure (plain `Error`,
- * no `code` property) as opposed to a Node.js filesystem error (`ENOSPC`,
- * `EACCES`, ...) which callers may want to inspect and handle differently.
- */
-function isDecodeError(err: unknown): boolean {
-	return err instanceof Error && !('code' in err && (err as NodeJS.ErrnoException).code);
 }
 
 export interface ProcessedPhoto {
@@ -50,8 +44,12 @@ export interface ProcessedPhoto {
  *
  * Throws {@link MediaError} with a clear French message when the source is
  * not decodable, too large (decompression-bomb guard, EC-9), or when a HEIC
- * file specifically fails to convert (EC-10). On any failure after files
- * were written, already-written files are unlinked before rethrowing (EC-9).
+ * file specifically fails to convert (EC-10). Decoding/encoding happens fully
+ * in memory before anything is written to disk, so a filesystem failure while
+ * writing the resulting files (e.g. `ENOSPC`, EC-12) is never mistaken for a
+ * decode failure and surfaces unchanged instead of a generic
+ * `MediaError('Image illisible.')` (F4). On any failure after files were
+ * written, already-written files are unlinked before rethrowing (EC-9).
  */
 export async function processPhoto(tmpPath: string, sniff: SniffResult): Promise<ProcessedPhoto> {
 	// Never trust a caller-provided size: stat the file we are actually about
@@ -59,6 +57,11 @@ export async function processPhoto(tmpPath: string, sniff: SniffResult): Promise
 	const stat = await fs.stat(tmpPath);
 	if (stat.size === 0) {
 		throw new MediaError('Image illisible.');
+	}
+	// Photos are read fully into memory (readFile + decode): cap them well below
+	// the global upload limit to avoid a memory DoS on small hosts.
+	if (stat.size > MAX_PHOTO_BYTES) {
+		throw new MediaError('Photo trop volumineuse (max 50 Mo).', 413);
 	}
 
 	const isHeic = sniff.ext === 'heic' || sniff.ext === 'heif';
@@ -107,27 +110,41 @@ export async function processPhoto(tmpPath: string, sniff: SniffResult): Promise
 	const storedName = newStoredName(ext);
 	const thumbName = newStoredName('webp');
 
+	const oriented = sharp(sourceBuffer, { limitInputPixels: MAX_PIXELS }).rotate();
+
+	let original: { data: Buffer; info: OutputInfo };
+	let thumb: Buffer;
 	try {
-		const oriented = sharp(sourceBuffer, { limitInputPixels: MAX_PIXELS }).rotate();
-		const originalInfo = await encode(oriented.clone(), ext).toFile(mediaPath(storedName));
-		await oriented
+		// Fully decode and re-encode both outputs in memory first: any failure
+		// here is unambiguously a decode/encode problem with the source image,
+		// never a filesystem error (F4).
+		original = await encode(oriented.clone(), ext).toBuffer({ resolveWithObject: true });
+		thumb = await oriented
 			.clone()
 			.resize({ width: THUMB_WIDTH, withoutEnlargement: true })
 			.webp({ quality: 80 })
-			.toFile(mediaPath(thumbName));
+			.toBuffer();
+	} catch {
+		throw new MediaError('Image illisible.');
+	}
 
-		return {
-			storedName,
-			thumbName,
-			mime: storedMime,
-			width: originalInfo.width,
-			height: originalInfo.height
-		};
+	try {
+		// Writes happen outside the decode/encode try block, via plain Node fs
+		// calls, so a disk failure (e.g. ENOSPC, EC-12) always comes back as a
+		// regular `NodeJS.ErrnoException` with `.code` set and is never mapped
+		// to `MediaError('Image illisible.')`.
+		await fs.writeFile(mediaPath(storedName), original.data);
+		await fs.writeFile(mediaPath(thumbName), thumb);
 	} catch (err) {
 		await removeMediaFiles({ storedName, thumbName });
-		if (isDecodeError(err)) {
-			throw new MediaError('Image illisible.');
-		}
 		throw err;
 	}
+
+	return {
+		storedName,
+		thumbName,
+		mime: storedMime,
+		width: original.info.width,
+		height: original.info.height
+	};
 }
