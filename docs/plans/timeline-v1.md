@@ -142,7 +142,7 @@ files: src/lib/server/media/serve.ts, src/lib/server/media/serve.test.ts, src/ro
 do: `variant` ∈ original|thumb|poster. `serveMedia(db, id, variant, rangeHeader)`: 404 if row missing, media deleted, or owner (entry / series of occurrence note / journal) deleted (EC-16); resolve via `mediaPath` only (no client path). Parse single `bytes=a-b` / `bytes=a-` / `bytes=-n`; 206 with Content-Range, Accept-Ranges, Content-Length, stream via `fs.createReadStream` → `ReadableStream`; 416 on unsatisfiable; 200 otherwise. `Cache-Control: private, max-age=31536000, immutable`. Auth enforced by hooks (T9).
 exit: `npx vitest run src/lib/server/media/serve.test.ts` passes: `bytes=0-99` → 206, length 100; invalid range → 416; deleted media → 404; owner-deleted → 404 (FR-22, FR-23, AC-7 206, NFR-4).
 
-### T21: Trash service and scheduled purge  [todo]  (lite: no)
+### T21: Trash service and scheduled purge  [done]  (lite: no)
 deps: T9, T17
 files: src/lib/server/trash/service.ts, src/lib/server/trash/service.test.ts, src/lib/server/startup.ts
 do: (NOTE from B4 security review: the scheduled purge must also `DELETE FROM sessions WHERE expires_at <= now`.) (NOTE from B3 review: journal_entries has a partial unique index (user_id, day) WHERE deleted_at IS NULL — restoring a soft-deleted journal entry when the author already wrote a new one for that day must be detected and refused with a 409 + French message, not a 500; test it.) `listTrash(db)` → top-level deleted items (entries incl. series, journal entries, media) with title/label, deletedAt, `expiresAt = deletedAt + 30d`. `restore(db, kind, id, userId)` clears deleted_at (journal: author only → 403). `purgeItem(db, kind, id, userId)`: collect all media rows under the item (direct + occurrence notes + journal), delete DB row in transaction (cascade), then `removeMediaFiles`. `purgeExpired(db, now)` purges items with deleted_at < now − 30 days. In `startup.ts` add: call `purgeExpired` at startup and `setInterval` every 24h (unref'd).
@@ -160,13 +160,13 @@ files: src/lib/server/export.ts, src/lib/server/export.test.ts, src/routes/api/e
 do: `exportAll(db)` → `{ version: 1, exportedAt, users: [{id, username, displayName}], entries, occurrenceNotes, journal, media (metadata only, no files) }` excluding password hashes and sessions; includes soft-deleted flag fields. GET `/api/export` returns it with `Content-Disposition: attachment; filename="timeline-export-YYYY-MM-DD.json"`. Settings page: current user info, "Exporter en JSON" download link, logout button (POST /logout), note about `npm run backup`.
 exit: `npx vitest run src/lib/server/export.test.ts` passes (JSON.parse round-trip, no `password_hash` substring); e2e covered in T40 (FR-27, AC-12).
 
-### T24: App shell layout and navigation  [todo]  (lite: no)
+### T24: App shell layout and navigation  [done]  (lite: no)
 deps: T9
 files: src/routes/+layout.svelte, src/routes/+layout.server.ts, src/lib/components/AppNav.svelte, src/lib/components/ConfirmButton.svelte, e2e/nav.spec.ts
 do: Layout imports app.css; `+layout.server.ts` returns `locals.user`. AppNav (hidden on /login): bottom tab bar on < 1024px, top bar on ≥ 1024px: Timeline (/), Journal (/journal), Ce jour-là (/ce-jour-la), Recherche (/recherche), Corbeille (/corbeille), Paramètres (/parametres); active state; each target ≥ 44px. `ConfirmButton.svelte`: form-submit button that opens native `<dialog>` "Mettre à la corbeille ?" confirm before submitting (used for all deletes, FR-24).
 exit: `npm run test:e2e -- e2e/nav.spec.ts` passes on both projects: after login, all 6 nav links visible and navigable; no nav on /login (NFR-1, NFR-7).
 
-### T25: PWA manifest, icons, service worker  [todo]  (lite: yes)
+### T25: PWA manifest, icons, service worker  [done]  (lite: yes)
 deps: T9
 files: static/manifest.webmanifest, static/icons/icon-192.png, static/icons/icon-512.png, static/icons/icon-maskable-512.png, static/favicon.png, src/service-worker.ts, e2e/pwa.spec.ts
 do: Manifest: name "Notre timeline", short_name "Timeline", lang fr, start_url "/", display standalone, theme/background colors matching app.css, 3 icons (generate PNGs with a one-off sharp command, commit outputs). Service worker (`$service-worker` build + files): cache static assets on install, cache-first only for those URLs, network for everything else; delete old caches on activate.
@@ -178,13 +178,13 @@ files: src/lib/dates/fuzzy-form.ts, src/lib/dates/fuzzy-form.test.ts, src/lib/co
 do: `fuzzy-form.ts`: `parseFuzzyFormFields({precision, year, month, day})` → FuzzyDate|error (French), `fuzzyToFormFields`. Component (Svelte 5 runes, props `name`, `value`, `label`, `required`, `allowedPrecisions`): precision segmented control (Jour/Mois/Année), year number input, month `<select>` French months, day input; hidden inputs `<name>_precision/_year/_month/_day`; mobile-friendly (inputmode numeric, 44px).
 exit: `npx vitest run src/lib/dates/fuzzy-form.test.ts` passes; `npm run check` clean (FR-5, FR-14).
 
-### T27: Entry form and create/edit routes  [todo]  (lite: no)
+### T27: Entry form and create/edit routes  [doing]  (lite: no)
 deps: T10, T24, T26
 files: src/lib/components/EntryForm.svelte, src/lib/components/TagInput.svelte, src/routes/entries/new/+page.svelte, src/routes/entries/new/+page.server.ts, src/routes/entries/[id]/edit/+page.svelte, src/routes/entries/[id]/edit/+page.server.ts, e2e/entries-form.spec.ts
 do: (NOTE from B4 fixes: `validateEntryInput` takes `start`/`end` as `FuzzyFormFields` (src/lib/dates/fuzzy-form.ts) — pass the FuzzyDateInput fields straight through; parsing/messages come from `parseFuzzyFormFields`.) EntryForm: type select (Souvenir, Important, Phase, Récurrent, Histoire) toggling fields: start FuzzyDateInput (day-only for récurrent, labeled "Date d'origine"), end FuzzyDateInput for phase/histoire ("Fin (vide = en cours)") and récurrent end (day), frequency (Annuel/Mensuel) for récurrent, title, description textarea (markdown léger hint), location, TagInput (comma/enter chips, hidden `tags` JSON). `new` load reads `?type=&date=YYYY-MM-DD` to prefill (FR-18 promote). Actions call validateEntryInput/createEntry/updateEntry with `locals.user.id`, return `fail(400, {errors, values})` preserving input; success → redirect `/entries/<id>`. Edit page shows created/updated by+date (FR-6).
 exit: `npm run test:e2e -- e2e/entries-form.spec.ts` passes (both projects): create a phase with end<start shows French error and keeps values (EC-2); create souvenir with month precision redirects to detail URL; `/entries/new?type=souvenir&date=2024-05-01` prefilled (FR-14, FR-18).
 
-### T28: Media uploader and gallery components  [todo]  (lite: no)
+### T28: Media uploader and gallery components  [done]  (lite: no)
 deps: T19, T20
 files: src/lib/media/upload-client.ts, src/lib/components/MediaUploader.svelte, src/lib/components/MediaGallery.svelte
 do: `upload-client.ts`: `uploadFiles(files, ownerFields, onProgress)` via XMLHttpRequest multipart to `/api/media` (one request per file, sequential), resolves JSON or rejects with server French message; 401 → `location.href = '/login?redirectTo=...'`. MediaUploader: `<input type=file multiple accept="image/*,video/mp4,video/quicktime,video/webm">`, per-file progress bars, error list, `onuploaded` callback (then `invalidateAll()`). MediaGallery: grid of thumbs (`loading="lazy"`, `/media/<id>/thumb`), photo opens full image in `<dialog>`, video → `<video controls preload="metadata" poster=...>` of `/media/<id>/original` (generic video icon when no poster), per-item ConfirmButton delete → `DELETE /api/media/<id>`.
@@ -220,13 +220,13 @@ files: src/routes/+page.svelte, src/routes/+page.server.ts, src/lib/timeline/pre
 do: Load `getTimeline(db, {types from ?types= (default all 5), today: todayIn(tz)})`. TypeFilters: 5 toggle chips updating URL `?types=` (goto, keepFocus). ViewToggle vertical/horizontal; `prefs.ts` stores choice in localStorage `timeline.view`; default by `matchMedia('(min-width: 1024px)')`. Empty state when no non-histoire items: "Votre timeline est vide" + CTA button "Ajouter un souvenir" → /entries/new (EC-14). "Ajouter" FAB always visible. Link "Ce jour-là" at top (FR-20 access from home).
 exit: `npm run test:e2e -- e2e/timeline.spec.ts` passes on both projects: fresh data shows empty-state CTA; create via UI one entry of each of the 5 types with year/month/day precisions → DOM order matches expected in vertical AND horizontal (toggle) views; hiding `histoire` filter removes histoire items; toggle choice persists after reload (AC-3, FR-9, FR-10, FR-11, EC-14).
 
-### T34: Journal day page and journal API  [todo]  (lite: no)
+### T34: Journal day page and journal API  [doing]  (lite: no)
 deps: T7, T14, T24, T28
 files: src/lib/journal/draft.ts, src/routes/journal/+page.server.ts, src/routes/journal/[date]/+page.svelte, src/routes/journal/[date]/+page.server.ts, src/routes/api/journal/[date]/+server.ts, e2e/journal.spec.ts
 do: (NOTE from B4 fixes: journal service `now` params are ms-epoch numbers; `getDay(db, day, tz, now)` / `upsertOwnEntry(db, userId, day, input, tz, now)`; invalid `day` → `HttpError(400)`.) `/journal` → redirect `/journal/<todayIn(tz)>`. Day page: prev/next day links (next hidden beyond today), `<input type=date>` jump, two columns (stack < 768px): own entry editable (textarea, mood radio chips from MOODS, save action, ConfirmButton delete, MediaUploader ownerKind journal after first save), partner's rendered read-only (markdown HTML, mood, MediaGallery without delete). Future day: read-only message "Impossible d'écrire pour un jour futur". `draft.ts`: autosave textarea to localStorage `journal-draft:<userId>:<day>` on input, restore if newer than server text, clear on successful save (EC-13). "Promouvoir en souvenir" link → `/entries/new?type=souvenir&date=<day>`. API: PUT `{text, mood}` → upsert own (400 future), DELETE → soft delete own; errors map HttpError status (403 on other's id via `?id=`).
 exit: `npm run test:e2e -- e2e/journal.spec.ts` passes: alice writes, bob (second context) sees alice's text and has no edit control for it; bob `PUT/DELETE /api/journal/<day>?id=<aliceId>` → 403; PUT for tomorrow → 400; draft restored after reload without save (AC-6, FR-15..18, EC-7, EC-8, EC-13).
 
-### T35: Journal calendar view  [todo]  (lite: no)
+### T35: Journal calendar view  [doing]  (lite: no)
 deps: T14, T24
 files: src/routes/journal/calendrier/+page.svelte, src/routes/journal/calendrier/+page.server.ts, e2e/journal-calendar.spec.ts
 do: Month grid (`?mois=YYYY-MM`, default current month in TZ) with prev/next month; each day cell links to `/journal/<day>` and shows author initials/colored dots per author from `listCalendar`; below 768px render as list of days having entries. Page has a "Journal du jour" link to /journal; the Journal nav tab stays pointed at /journal (T34 files untouched).
@@ -238,7 +238,7 @@ files: src/routes/recherche/+page.svelte, src/routes/recherche/+page.server.ts, 
 do: GET form `?q=`; load runs `search(db, q)`; results list with kind badge (Entrée/Journal), title or day+author, snippet (text only, escaped), link to url. Empty message "Aucun résultat pour « q »".
 exit: `npm run test:e2e -- e2e/search.spec.ts` passes: word written in a journal (via API) and an entry description (via form) → 2 clickable results; query `"*-` shows empty message, HTTP 200 (AC-9, FR-12, EC-15).
 
-### T37: "Ce jour-là" page  [todo]  (lite: no)
+### T37: "Ce jour-là" page  [doing]  (lite: no)
 deps: T16, T24
 files: src/routes/ce-jour-la/+page.svelte, src/routes/ce-jour-la/+page.server.ts, e2e/ce-jour-la.spec.ts
 do: Load `onThisDay(db, todayIn(tz))`; heading "Ce jour-là — <JJ mois>"; sections per year ("Il y a N ans — YYYY") with items linking to entry / occurrence page / journal day. Empty message "Rien ne s'est passé un <JJ mois> les années précédentes… pour l'instant."
@@ -250,7 +250,7 @@ files: src/routes/corbeille/+page.svelte, src/routes/corbeille/+page.server.ts, 
 do: List `listTrash` items (type label, title, deleted date, "suppression définitive le <date>"); actions `restore` and `purge` (ConfirmButton "Supprimer définitivement ?"); journal items of the other user shown without actions. Empty state "La corbeille est vide".
 exit: `npm run test:e2e -- e2e/trash.spec.ts` passes: create entry, delete from detail → absent from timeline and search, listed in corbeille; restore → back on timeline; purge → gone from corbeille (AC-8 UI, FR-24, EC-16).
 
-### T39: README and Raspberry Pi deployment guide  [todo]  (lite: no)
+### T39: README and Raspberry Pi deployment guide  [done]  (lite: no)
 deps: T9, T12, T22
 files: README.md, docs/DEPLOY-RPI.md
 do: README (French): prerequisites (Node 22), `npm install`, `.env` from `.env.example`, `npm run db:migrate`, `npm run user:create` ×2, `npm run seed`, `npm run dev -- --host`, access from phone via `http://<ip-lan>:5173` / prod port, tests (`npm test`, `npx playwright install`, `npm run test:e2e`), backup/export, EC-3 date ordering rule, AC-14 manual LAN check steps. DEPLOY-RPI: Node 22 ARM64 install (NodeSource), clone/build (`npm ci && npm run build && npm prune --omit=dev` keeping tsx), systemd unit with env (HOST, PORT, ORIGIN, DATA_DIR, TZ, BODY_SIZE_LIMIT=Infinity), optional `apt install ffmpeg`, cron `npm run backup` daily + retention, HTTPS on LAN: comparison table (Caddy + internal CA / mkcert with CA install on iOS & Android, vs Tailscale serve) and step-by-step for the recommended option — recommend Caddy `tls internal` reverse proxy with root CA installed on phones (fully local, no external account), Tailscale as documented alternative; PROTOCOL_HEADER/HOST_HEADER settings behind Caddy.
@@ -271,7 +271,7 @@ exit: `npm install && npm run build && npm run check && npm run lint && npm test
 - F5 (B4 test W): `src/lib/server/timeline/query.test.ts` NFR-2 perf test uses a real wall-clock <300ms budget — widen margin or gate separately if it flakes on the Pi/CI.
 - F6 (B4 design W): `src/lib/server/entries/occurrences.ts` `ensureOccurrenceNote` near-duplicates `upsertOccurrenceNote` — merge into one fn with optional `note` (omitted = leave note untouched); update T19/T30 callers accordingly.
 - F7 (B4 bug N): `src/lib/server/entries/service.ts` journal-link 366-day cap keeps the oldest days of a long open phase — consider keeping the most recent 366 instead.
-- F8 (B5 T31/T32): `src/lib/components/timeline/TimelineCard.svelte` + `HorizontalTimeline.svelte` use `eslint-disable-next-line svelte/no-navigation-without-resolve` for `/entries/...` links because T29/T30 routes did not exist yet — switch to `resolve()` and drop the disable once they land (do with T29/T30).
+- F8 (B5 T31/T32, B6 T24): `src/lib/components/timeline/TimelineCard.svelte` + `HorizontalTimeline.svelte` + `src/lib/components/AppNav.svelte` (5 nav links) + `src/routes/journal/calendrier/+page.svelte` + `src/routes/ce-jour-la/+page.svelte` (B7) use `eslint-disable-next-line svelte/no-navigation-without-resolve` for `/entries/...` links because T29/T30 routes did not exist yet — switch to `resolve()` and drop the disable once they land (do with T29/T30).
 - F9 (T39 finding): nothing loads `.env` — `node build`, `tsx scripts/*` and `vite dev` (config.ts reads `process.env`) all ignore it; DEPLOY-RPI documents `set -a; . ./.env` + systemd `EnvironmentFile` as workaround. Fix: `node --env-file-if-exists=.env` (Node ≥22.9; real env wins) in `start` and tsx scripts, and `loadEnv` → `process.env` in vite.config.ts for dev; then simplify README/DEPLOY-RPI.
 - F10 (B5 bug W, do with T30/F6): `src/lib/server/media/upload.ts` `resolveOwner` for `ownerKind=occurrence` calls `ensureOccurrenceNote` (inserts or un-soft-deletes the note row) BEFORE files are processed → a later 413/415/507 leaves an empty note row / resurrects a deleted note. Fix: resolve occurrence ownership read-only first, create/restore the note inside the success path (same transaction as media rows).
 

@@ -21,6 +21,9 @@
 		"seed": "tsx scripts/seed.ts",
 		"backup": "tsx scripts/backup.ts"
 	},
+	"engines": {
+		"node": ">=22"
+	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.60.0",

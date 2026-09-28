@@ -14,6 +14,7 @@ import { ensureOccurrenceNote } from '../entries/occurrences';
 import { HttpError } from '../http-error';
 import { todayIn } from '../time';
 import { processPhoto } from './images';
+import { toMediaItem } from './query';
 import {
 	ensureMediaDir,
 	mediaPath,
@@ -21,24 +22,13 @@ import {
 	removeMediaFiles,
 	type StoredMediaFiles
 } from './storage';
-import {
-	MAX_BYTES as DEFAULT_MAX_BYTES,
-	MediaError,
-	sniffAndValidate,
-	type MediaKind
-} from './validate';
+import { MAX_BYTES as DEFAULT_MAX_BYTES, MediaError, sniffAndValidate } from './validate';
 import { makePoster } from './video';
+import type { MediaItem } from '$lib/media/types';
 
 /** Minimal shape of the authenticated user needed to process an upload. */
 export interface UploadUser {
 	id: number;
-}
-
-export interface UploadedMediaItem {
-	id: number;
-	kind: MediaKind;
-	thumbUrl: string;
-	url: string;
 }
 
 /** Multipart part limits (DoS guard): max files, total parts, text fields, and per-field bytes. */
@@ -295,7 +285,7 @@ function insertMediaRow(db: Db, values: typeof media.$inferInsert): typeof media
 }
 
 interface ProcessedFile {
-	item: UploadedMediaItem;
+	item: MediaItem;
 	files: StoredMediaFiles;
 }
 
@@ -341,12 +331,7 @@ async function processFile(
 			});
 
 			return {
-				item: {
-					id: row.id,
-					kind: 'photo',
-					thumbUrl: `/media/${row.id}/thumb`,
-					url: `/media/${row.id}/original`
-				},
+				item: toMediaItem(row),
 				files: { storedName: processed.storedName, thumbName: processed.thumbName }
 			};
 		} catch (err) {
@@ -392,12 +377,7 @@ async function processFile(
 		});
 
 		return {
-			item: {
-				id: row.id,
-				kind: 'video',
-				thumbUrl: posterOk ? `/media/${row.id}/poster` : '',
-				url: `/media/${row.id}/original`
-			},
+			item: toMediaItem(row),
 			files: { storedName, posterName: posterOk ? posterName : null }
 		};
 	} catch (err) {
@@ -468,7 +448,7 @@ export async function handleUpload(
 		return errorFromException(err);
 	}
 
-	const uploaded: UploadedMediaItem[] = [];
+	const uploaded: MediaItem[] = [];
 	const produced: { id: number; files: StoredMediaFiles }[] = [];
 
 	try {
