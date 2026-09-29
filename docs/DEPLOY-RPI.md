@@ -63,22 +63,17 @@ Points d'attention :
 - `PROTOCOL_HEADER` et `HOST_HEADER` (ou à défaut `ORIGIN`) sont indispensables derrière Caddy : sans eux, SvelteKit croit être en `http://`, le cookie de session n'a pas l'attribut `Secure` et le contrôle CSRF (en-tête `Origin`) peut refuser les formulaires.
 - Ne définissez pas `ADDRESS_HEADER` sauf si Caddy est le seul point d'entrée vers Node : sinon un client pourrait falsifier `X-Forwarded-For`. Si vous le faites, ajoutez `ADDRESS_HEADER=x-forwarded-for` et `XFF_DEPTH=1`.
 - `BODY_SIZE_LIMIT=Infinity` désactive la limite d'adapter-node ; l'application applique ses propres limites : 500 Mo par fichier et par requête, 50 Mo par photo, 20 fichiers.
-- Ni `node build` ni les scripts `tsx` ne lisent `.env` seuls. Pour les commandes `npm run ...` lancées à la main, chargez-le d'abord :
-
-```sh
-cd /opt/timeline
-set -a; . ./.env; set +a
-```
+- `npm start` et les commandes `npm run ...` lisent `.env` automatiquement depuis `/opt/timeline` (les variables déjà définies dans l'environnement l'emportent).
 
 ## 4. Base de données et comptes
 
-Toujours avec l'environnement chargé (section 3), en tant que `timeline` pour que les fichiers lui appartiennent :
+Depuis `/opt/timeline` (le `.env` de la section 3 est lu automatiquement), en tant que `timeline` pour que les fichiers lui appartiennent :
 
 ```sh
-sudo -u timeline bash -c 'cd /opt/timeline && set -a && . ./.env && set +a && npm run db:migrate'
-sudo -u timeline bash -c 'cd /opt/timeline && set -a && . ./.env && set +a && npm run user:create -- --username alice --display-name Alice'
-sudo -u timeline bash -c 'cd /opt/timeline && set -a && . ./.env && set +a && npm run user:create -- --username bob --display-name Bob'
-sudo -u timeline bash -c 'cd /opt/timeline && set -a && . ./.env && set +a && npm run seed'
+sudo -u timeline bash -c 'cd /opt/timeline && npm run db:migrate'
+sudo -u timeline bash -c 'cd /opt/timeline && npm run user:create -- --username alice --display-name Alice'
+sudo -u timeline bash -c 'cd /opt/timeline && npm run user:create -- --username bob --display-name Bob'
+sudo -u timeline bash -c 'cd /opt/timeline && npm run seed'
 ```
 
 `user:create` demande le mot de passe par une invite masquée. Autres sources possibles : variable `USER_PASSWORD`, entrée standard redirigée, ou `--password` (déconseillé : visible dans l'historique du shell et dans `ps`). Deux comptes maximum.
@@ -222,15 +217,15 @@ Activez les certificats HTTPS et MagicDNS dans la console d'administration Tails
 Créez `/etc/cron.d/timeline-backup` (tous les jours à 03:30, rétention de 30 jours) :
 
 ```cron
-30 3 * * * timeline cd /opt/timeline && set -a && . ./.env && set +a && npm run backup >> /var/log/timeline-backup.log 2>&1 && find /var/backups/timeline -name '*.tar.gz' -mtime +30 -delete
+30 3 * * * timeline cd /opt/timeline && npm run backup >> /var/log/timeline-backup.log 2>&1 && find /var/backups/timeline -name '*.tar.gz' -mtime +30 -delete
 ```
 
-`/etc/cron.d` utilise `sh` : si `.` ou `set -a` posent problème, écrivez la ligne avec `bash -c '...'` ou placez la commande dans un script. Préparez le journal : `sudo touch /var/log/timeline-backup.log && sudo chown timeline /var/log/timeline-backup.log`.
+Préparez le journal : `sudo touch /var/log/timeline-backup.log && sudo chown timeline /var/log/timeline-backup.log`.
 
 Testez à la main, puis contrôlez l'archive :
 
 ```sh
-sudo -u timeline bash -c 'cd /opt/timeline && set -a && . ./.env && set +a && npm run backup'
+sudo -u timeline bash -c 'cd /opt/timeline && npm run backup'
 ls -lh /var/backups/timeline
 ```
 

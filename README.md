@@ -40,13 +40,7 @@ Le fichier `.env.example` documente toutes les variables. Les valeurs par défau
 | `BODY_SIZE_LIMIT`                | `Infinity`     | Limite d'adapter-node désactivée : les limites d'envoi sont dans l'app |
 | `PROTOCOL_HEADER`, `HOST_HEADER` | (vides)        | En-têtes de confiance derrière un reverse proxy                        |
 
-Important : ni `node build` ni les scripts `tsx` ne lisent le fichier `.env` d'eux-mêmes. Pour que `npm run db:migrate`, `user:create`, `seed` et `backup` utilisent votre configuration, chargez-la dans le shell :
-
-```sh
-set -a; . ./.env; set +a
-```
-
-(ou préfixez la commande : `DATA_DIR=/chemin npm run db:migrate`). Le contenu de `.env` doit rester au format `CLE=valeur`, sans espaces autour du `=`.
+Placez vos réglages dans `.env` : `npm start` et les scripts (`db:migrate`, `user:create`, `seed`, `backup`) le lisent automatiquement (Node ≥ 22.9), ainsi que `npm run dev`. Une variable déjà définie dans l'environnement l'emporte sur le fichier.
 
 ## Comptes
 

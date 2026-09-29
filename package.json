@@ -7,7 +7,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"start": "node build",
+		"start": "node --env-file-if-exists=.env build",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -16,13 +16,13 @@
 		"test": "vitest run",
 		"test:e2e": "playwright test",
 		"db:generate": "drizzle-kit generate",
-		"db:migrate": "tsx scripts/migrate.ts",
-		"user:create": "tsx scripts/user-create.ts",
-		"seed": "tsx scripts/seed.ts",
-		"backup": "tsx scripts/backup.ts"
+		"db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
+		"user:create": "tsx --env-file-if-exists=.env scripts/user-create.ts",
+		"seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
+		"backup": "tsx --env-file-if-exists=.env scripts/backup.ts"
 	},
 	"engines": {
-		"node": ">=22"
+		"node": ">=22.9"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

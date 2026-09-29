@@ -1,8 +1,19 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+	// `vite dev` only: expose .env to server code (config.ts reads process.env). Real env vars win.
+	if (mode === 'development') {
+		for (const [key, value] of Object.entries(loadEnv(mode, process.cwd(), ''))) {
+			process.env[key] ??= value;
+		}
+	}
+	return config;
+});
+
+const config = {
 	plugins: [
 		sveltekit({
 			compilerOptions: {
@@ -26,4 +37,4 @@ export default defineConfig({
 			}
 		]
 	}
-});
+};
