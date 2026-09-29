@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { formatDayFr } from '$lib/dates/format';
-	import type { OrphanOccurrenceNote, SeriesOccurrence } from '$lib/server/entries/occurrences';
+	import type { OrphanOccurrenceNote, SeriesOccurrence } from '$lib/entries/occurrence-types';
 
 	/**
 	 * Occurrences of a recurrent series (newest first) with note excerpt, media count and a
@@ -22,6 +22,17 @@
 	const newestFirst = $derived([...occurrences].reverse());
 </script>
 
+{#snippet row(item: { date: string; note: string | null; mediaCount: number })}
+	<span class="date">{formatDayFr(item.date)}</span>
+	{#if item.note}<span class="note">{item.note}</span>{/if}
+	{#if item.mediaCount > 0}
+		<span class="count">
+			{item.mediaCount}
+			{item.mediaCount === 1 ? 'média' : 'médias'}
+		</span>
+	{/if}
+{/snippet}
+
 <section aria-label="Occurrences">
 	<h2>Occurrences</h2>
 	{#if newestFirst.length === 0}
@@ -36,14 +47,7 @@
 							date: occ.date
 						})}
 					>
-						<span class="date">{formatDayFr(occ.date)}</span>
-						{#if occ.note}<span class="note">{occ.note}</span>{/if}
-						{#if occ.mediaCount > 0}
-							<span class="count">
-								{occ.mediaCount}
-								{occ.mediaCount === 1 ? 'média' : 'médias'}
-							</span>
-						{/if}
+						{@render row(occ)}
 					</a>
 				</li>
 			{/each}
@@ -56,16 +60,7 @@
 			<p class="hint">Ces notes concernent des dates qui ne sont plus des occurrences.</p>
 			<ul>
 				{#each orphans as orphan (orphan.id)}
-					<li>
-						<span class="date">{formatDayFr(orphan.date)}</span>
-						{#if orphan.note}<span class="note">{orphan.note}</span>{/if}
-						{#if orphan.mediaCount > 0}
-							<span class="count">
-								{orphan.mediaCount}
-								{orphan.mediaCount === 1 ? 'média' : 'médias'}
-							</span>
-						{/if}
-					</li>
+					<li>{@render row(orphan)}</li>
 				{/each}
 			</ul>
 		</section>

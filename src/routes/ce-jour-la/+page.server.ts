@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { requireUser } from '$lib/server/auth/session';
 import { getConfig } from '$lib/server/config';
 import { getDb } from '$lib/server/db';
 import { onThisDay } from '$lib/server/onthisday/service';
@@ -8,9 +8,7 @@ import { yearsAgoLabel } from '$lib/dates/format';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
-	if (!locals.user) {
-		redirect(303, '/login');
-	}
+	requireUser(locals);
 
 	const today = todayIn(getConfig().tz);
 	const currentYear = Number(today.slice(0, 4));

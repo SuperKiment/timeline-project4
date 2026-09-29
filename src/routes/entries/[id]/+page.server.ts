@@ -1,6 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { fromSortKey, formatPeriodFr } from '$lib/dates/fuzzy';
+import { requireUser } from '$lib/server/auth/session';
 import { getConfig } from '$lib/server/config';
 import { getDb } from '$lib/server/db';
 import { getEntry, listJournalDaysForEntry, softDeleteEntry } from '$lib/server/entries/service';
@@ -15,9 +16,7 @@ import { parseTagsJson } from '$lib/timeline/entry-form';
 import type { EntryType } from '$lib/timeline/types';
 
 export const load: PageServerLoad = ({ locals, params }) => {
-	if (!locals.user) {
-		redirect(303, '/login');
-	}
+	requireUser(locals);
 
 	const db = getDb();
 	const entry = getEntry(db, parseIdParamOr404(params.id));
@@ -52,9 +51,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 
 export const actions: Actions = {
 	delete: ({ locals, params }) => {
-		if (!locals.user) {
-			redirect(303, '/login');
-		}
+		requireUser(locals);
 
 		const id = parseIdParamOr404(params.id);
 		const db = getDb();

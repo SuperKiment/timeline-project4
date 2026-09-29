@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isFutureDay, monthDay, todayIn } from './time';
+import { HttpError } from './http-error';
+import { assertValidDay, isFutureDay, monthDay, todayIn } from './time';
 
 describe('todayIn', () => {
 	it('resolves 2026-01-01T23:30:00Z to 2026-01-02 in Europe/Paris', () => {
@@ -29,5 +30,21 @@ describe('isFutureDay', () => {
 describe('monthDay', () => {
 	it('extracts MM-DD from an ISO day', () => {
 		expect(monthDay('2026-03-05')).toBe('03-05');
+	});
+});
+
+describe('assertValidDay', () => {
+	it('accepts a real calendar day', () => {
+		expect(() => assertValidDay('2026-02-28')).not.toThrow();
+	});
+
+	it.each(['', '2026-13-45', '2026-02-30', '26-1-1'])('rejects %j with 400', (day) => {
+		try {
+			assertValidDay(day);
+			expect.unreachable();
+		} catch (err) {
+			expect(err).toBeInstanceOf(HttpError);
+			expect((err as HttpError).status).toBe(400);
+		}
 	});
 });

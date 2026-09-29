@@ -47,20 +47,20 @@ export function listMediaByOwner(
 
 	const column = OWNER_COLUMN[ownerKind];
 	const rows = db
-		.select()
+		.select({
+			ownerId: column,
+			id: media.id,
+			kind: media.kind,
+			thumbName: media.thumbName,
+			posterName: media.posterName
+		})
 		.from(media)
 		.where(and(inArray(column, ids), isNull(media.deletedAt)))
 		.orderBy(asc(media.createdAt), asc(media.id))
 		.all();
 
 	for (const row of rows) {
-		const ownerId =
-			ownerKind === 'entry'
-				? row.entryId
-				: ownerKind === 'occurrence'
-					? row.occurrenceNoteId
-					: row.journalEntryId;
-		if (ownerId !== null) result.get(ownerId)?.push(toMediaItem(row));
+		if (row.ownerId !== null) result.get(row.ownerId)?.push(toMediaItem(row));
 	}
 	return result;
 }

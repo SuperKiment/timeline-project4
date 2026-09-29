@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createTestDb } from '../db/test-db';
 import { LoginRateLimiter } from './rate-limit';
 import { hashPassword, verifyPassword } from './password';
-import { createSession, invalidateSession, validateSession } from './session';
+import { createSession, invalidateSession, requireUser, validateSession } from './session';
 import { createUser, findUserByUsername, getDisplayNames } from './users';
 
 describe('hashPassword / verifyPassword', () => {
@@ -213,5 +213,23 @@ describe('LoginRateLimiter', () => {
 
 		expect(limiter.isBlocked(blockedKey)).toBe(true);
 		expect(limiter.size).toBe(maxKeys);
+	});
+});
+
+describe('requireUser', () => {
+	const user = { id: 1, username: 'a', displayName: 'A' };
+
+	it('returns the authenticated user', () => {
+		expect(requireUser({ user, sessionId: 's' })).toBe(user);
+	});
+
+	it('redirects to /login when unauthenticated', () => {
+		expect.assertions(2);
+		try {
+			requireUser({ user: null, sessionId: null });
+		} catch (e) {
+			expect(e).toMatchObject({ status: 303 });
+			expect(e).toMatchObject({ location: '/login' });
+		}
 	});
 });

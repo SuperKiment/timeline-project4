@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
 	addDays,
 	compareSortKeys,
-	containsDay,
 	daysInMonth,
 	diffDays,
 	firstDay,
@@ -44,55 +43,29 @@ describe('isoDay', () => {
 });
 
 describe('isValidFuzzy', () => {
-	it('accepts a valid day precision date, including leap day', () => {
-		expect(isValidFuzzy({ year: 2024, month: 2, day: 29, precision: 'day' })).toBe(true);
+	it.each<[string, FuzzyDate]>([
+		['day precision, including leap day', { year: 2024, month: 2, day: 29, precision: 'day' }],
+		['month precision', { year: 2019, month: 6, precision: 'month' }],
+		['year precision', { year: 2018, precision: 'year' }],
+		['year lower bound 1', { year: 1, precision: 'year' }],
+		['year upper bound 9999', { year: 9999, precision: 'year' }]
+	])('accepts %s', (_name, date) => {
+		expect(isValidFuzzy(date)).toBe(true);
 	});
 
-	it('rejects an invalid leap day', () => {
-		expect(isValidFuzzy({ year: 2023, month: 2, day: 29, precision: 'day' })).toBe(false);
-	});
-
-	it('rejects an out-of-range month', () => {
-		expect(isValidFuzzy({ year: 2018, month: 13, day: 1, precision: 'day' })).toBe(false);
-	});
-
-	it('rejects an out-of-range day', () => {
-		expect(isValidFuzzy({ year: 2018, month: 4, day: 31, precision: 'day' })).toBe(false);
-	});
-
-	it('rejects day precision missing day/month', () => {
-		expect(isValidFuzzy({ year: 2018, month: 4, precision: 'day' })).toBe(false);
-	});
-
-	it('accepts a valid month precision date', () => {
-		expect(isValidFuzzy({ year: 2019, month: 6, precision: 'month' })).toBe(true);
-	});
-
-	it('rejects month precision carrying a day', () => {
-		expect(isValidFuzzy({ year: 2019, month: 6, day: 1, precision: 'month' })).toBe(false);
-	});
-
-	it('accepts a valid year precision date', () => {
-		expect(isValidFuzzy({ year: 2018, precision: 'year' })).toBe(true);
-	});
-
-	it('rejects year precision carrying a month', () => {
-		expect(isValidFuzzy({ year: 2018, month: 3, precision: 'year' })).toBe(false);
-	});
-
-	it('rejects a non-integer year', () => {
-		expect(isValidFuzzy({ year: 2018.5, precision: 'year' })).toBe(false);
-	});
-
-	it('accepts the year bounds 1 and 9999', () => {
-		expect(isValidFuzzy({ year: 1, precision: 'year' })).toBe(true);
-		expect(isValidFuzzy({ year: 9999, precision: 'year' })).toBe(true);
-	});
-
-	it('rejects a year of 0, negative years, and years above 9999', () => {
-		expect(isValidFuzzy({ year: 0, precision: 'year' })).toBe(false);
-		expect(isValidFuzzy({ year: -1, precision: 'year' })).toBe(false);
-		expect(isValidFuzzy({ year: 10000, precision: 'year' })).toBe(false);
+	it.each<[string, Partial<FuzzyDate>]>([
+		['an invalid leap day', { year: 2023, month: 2, day: 29, precision: 'day' }],
+		['an out-of-range month', { year: 2018, month: 13, day: 1, precision: 'day' }],
+		['an out-of-range day', { year: 2018, month: 4, day: 31, precision: 'day' }],
+		['day precision missing day', { year: 2018, month: 4, precision: 'day' }],
+		['month precision carrying a day', { year: 2019, month: 6, day: 1, precision: 'month' }],
+		['year precision carrying a month', { year: 2018, month: 3, precision: 'year' }],
+		['a non-integer year', { year: 2018.5, precision: 'year' }],
+		['a year of 0', { year: 0, precision: 'year' }],
+		['a negative year', { year: -1, precision: 'year' }],
+		['a year above 9999', { year: 10000, precision: 'year' }]
+	])('rejects %s', (_name, date) => {
+		expect(isValidFuzzy(date as FuzzyDate)).toBe(false);
 	});
 });
 
@@ -202,24 +175,6 @@ describe('isPeriodValid', () => {
 		expect(
 			isPeriodValid({ year: 2022, precision: 'year' }, { year: 2020, precision: 'year' })
 		).toBe(false);
-	});
-});
-
-describe('containsDay', () => {
-	const start: FuzzyDate = { year: 2020, month: 1, day: 1, precision: 'day' };
-	const end: FuzzyDate = { year: 2020, month: 6, day: 30, precision: 'day' };
-
-	it('includes days within a bounded period', () => {
-		expect(containsDay(start, end, '2020-03-15', '2021-01-01')).toBe(true);
-	});
-
-	it('excludes days outside a bounded period', () => {
-		expect(containsDay(start, end, '2020-07-01', '2021-01-01')).toBe(false);
-	});
-
-	it('treats a null end as ongoing up to today', () => {
-		expect(containsDay(start, null, '2021-01-01', '2021-01-01')).toBe(true);
-		expect(containsDay(start, null, '2021-01-02', '2021-01-01')).toBe(false);
 	});
 });
 

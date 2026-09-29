@@ -1,6 +1,7 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { formatStamp } from '$lib/dates/format';
+import { requireUser } from '$lib/server/auth/session';
 import { getConfig } from '$lib/server/config';
 import { getDb } from '$lib/server/db';
 import { HttpError, parseIdParam } from '$lib/server/http-error';
@@ -14,11 +15,7 @@ const KIND_LABELS: Record<TrashKind, string> = {
 };
 
 export const load: PageServerLoad = ({ locals }) => {
-	if (!locals.user) {
-		redirect(303, '/login');
-	}
-
-	const userId = locals.user.id;
+	const userId = requireUser(locals).id;
 	const tz = getConfig().tz;
 
 	return {
@@ -50,14 +47,12 @@ function readTarget(data: FormData): { kind: string; id: number } | null {
 
 export const actions: Actions = {
 	restore: async ({ locals, request }) => {
-		if (!locals.user) {
-			redirect(303, '/login');
-		}
+		const user = requireUser(locals);
 
 		const target = readTarget(await request.formData());
 		if (!target) return fail(400, { message: 'Élément invalide.' });
 		try {
-			restore(getDb(), target.kind, target.id, locals.user.id);
+			restore(getDb(), target.kind, target.id, user.id);
 		} catch (err) {
 			if (err instanceof HttpError) return fail(err.status, { message: err.message });
 			throw err;
@@ -66,14 +61,12 @@ export const actions: Actions = {
 	},
 
 	purge: async ({ locals, request }) => {
-		if (!locals.user) {
-			redirect(303, '/login');
-		}
+		const user = requireUser(locals);
 
 		const target = readTarget(await request.formData());
 		if (!target) return fail(400, { message: 'Élément invalide.' });
 		try {
-			await purgeItem(getDb(), target.kind, target.id, locals.user.id);
+			await purgeItem(getDb(), target.kind, target.id, user.id);
 		} catch (err) {
 			if (err instanceof HttpError) return fail(err.status, { message: err.message });
 			throw err;

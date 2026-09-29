@@ -87,37 +87,15 @@ describe('getDay / upsertOwnEntry', () => {
 			upsertOwnEntry(db, alice, '2026-06-10', { text: 'x', mood: '👻' }, TZ, NOW)
 		).toThrow(HttpError);
 	});
-});
 
-describe('day validation', () => {
-	it.each(['', '2026-13-45', '2026-02-30'])('rejects invalid day %j in getDay with 400', (day) => {
+	it('rejects an invalid day with 400 (getDay and upsert)', () => {
 		const db = createTestDb();
-		expect(() => getDay(db, day, TZ, NOW)).toThrow(HttpError);
-		try {
-			getDay(db, day, TZ, NOW);
-			expect.unreachable();
-		} catch (err) {
-			expect(err).toBeInstanceOf(HttpError);
-			expect((err as HttpError).status).toBe(400);
-		}
+		const alice = insertUser(db, 'alice', 'Alice');
+		const invalid = expect.objectContaining({ status: 400 });
+
+		expect(() => getDay(db, '2026-02-30', TZ, NOW)).toThrow(invalid);
+		expect(() => upsertOwnEntry(db, alice, '2026-02-30', { text: 'x' }, TZ, NOW)).toThrow(invalid);
 	});
-
-	it.each(['', '2026-13-45', '2026-02-30'])(
-		'rejects invalid day %j in upsertOwnEntry with 400',
-		(day) => {
-			const db = createTestDb();
-			const alice = insertUser(db, 'alice', 'Alice');
-
-			expect(() => upsertOwnEntry(db, alice, day, { text: 'x' }, TZ, NOW)).toThrow(HttpError);
-			try {
-				upsertOwnEntry(db, alice, day, { text: 'x' }, TZ, NOW);
-				expect.unreachable();
-			} catch (err) {
-				expect(err).toBeInstanceOf(HttpError);
-				expect((err as HttpError).status).toBe(400);
-			}
-		}
-	);
 });
 
 describe('updateEntryById', () => {

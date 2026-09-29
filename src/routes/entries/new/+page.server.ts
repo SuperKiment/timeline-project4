@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { requireUser } from '$lib/server/auth/session';
 import { getConfig } from '$lib/server/config';
 import { getDb } from '$lib/server/db';
 import { createEntry } from '$lib/server/entries/service';
@@ -8,18 +9,14 @@ import { todayIn } from '$lib/server/time';
 import { entryFormValuesFromFormData, prefillEntryFormValues } from '$lib/timeline/entry-form';
 
 export const load: PageServerLoad = ({ locals, url }) => {
-	if (!locals.user) {
-		redirect(303, '/login');
-	}
+	requireUser(locals);
 
 	return { values: prefillEntryFormValues(url.searchParams, todayIn(getConfig().tz)) };
 };
 
 export const actions: Actions = {
 	default: async ({ request, locals }) => {
-		if (!locals.user) {
-			redirect(303, '/login');
-		}
+		const user = requireUser(locals);
 
 		const values = entryFormValuesFromFormData(await request.formData());
 		const result = validateEntryInput(values);
@@ -27,7 +24,7 @@ export const actions: Actions = {
 			return fail(400, { errors: result.errors, values });
 		}
 
-		const entry = createEntry(getDb(), result.value, locals.user.id, Date.now());
+		const entry = createEntry(getDb(), result.value, user.id, Date.now());
 		redirect(303, `/entries/${entry.id}`);
 	}
 };

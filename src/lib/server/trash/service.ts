@@ -265,19 +265,6 @@ export function restore(db: Db, kind: string, id: number, userId: number): void 
 
 type MediaFiles = StoredMediaFiles & { id: number };
 
-function mediaFilesWhere(db: Db, condition: ReturnType<typeof or>): MediaFiles[] {
-	return db
-		.select({
-			id: media.id,
-			storedName: media.storedName,
-			thumbName: media.thumbName,
-			posterName: media.posterName
-		})
-		.from(media)
-		.where(condition)
-		.all();
-}
-
 /** All media rows living under the given owners (direct, via occurrence notes, journal). */
 function collectMedia(
 	db: Db,
@@ -300,7 +287,16 @@ function collectMedia(
 		ids.media?.length ? inArray(media.id, ids.media) : undefined
 	].filter((c) => c !== undefined);
 	if (conditions.length === 0) return [];
-	return mediaFilesWhere(db, or(...conditions));
+	return db
+		.select({
+			id: media.id,
+			storedName: media.storedName,
+			thumbName: media.thumbName,
+			posterName: media.posterName
+		})
+		.from(media)
+		.where(or(...conditions))
+		.all();
 }
 
 async function unlinkAll(files: MediaFiles[]): Promise<void> {
@@ -351,31 +347,20 @@ export async function purgeExpired(db: Db, now: number): Promise<number> {
 	// Sweep sessions first so a purge failure below cannot skip it.
 	db.delete(sessions).where(lte(sessions.expiresAt, now)).run();
 	const cutoff = now - TRASH_RETENTION_MS;
+	const expiredIds = (
+		table: typeof entries | typeof occurrenceNotes | typeof journalEntries | typeof media
+	) =>
+		db
+			.select({ id: table.id })
+			.from(table)
+			.where(and(isNotNull(table.deletedAt), lt(table.deletedAt, cutoff)))
+			.all()
+			.map((r) => r.id);
 	const ids = {
-		entries: db
-			.select({ id: entries.id })
-			.from(entries)
-			.where(and(isNotNull(entries.deletedAt), lt(entries.deletedAt, cutoff)))
-			.all()
-			.map((r) => r.id),
-		notes: db
-			.select({ id: occurrenceNotes.id })
-			.from(occurrenceNotes)
-			.where(and(isNotNull(occurrenceNotes.deletedAt), lt(occurrenceNotes.deletedAt, cutoff)))
-			.all()
-			.map((r) => r.id),
-		journal: db
-			.select({ id: journalEntries.id })
-			.from(journalEntries)
-			.where(and(isNotNull(journalEntries.deletedAt), lt(journalEntries.deletedAt, cutoff)))
-			.all()
-			.map((r) => r.id),
-		media: db
-			.select({ id: media.id })
-			.from(media)
-			.where(and(isNotNull(media.deletedAt), lt(media.deletedAt, cutoff)))
-			.all()
-			.map((r) => r.id)
+		entries: expiredIds(entries),
+		notes: expiredIds(occurrenceNotes),
+		journal: expiredIds(journalEntries),
+		media: expiredIds(media)
 	};
 	await purgeIds(db, ids);
 	return ids.entries.length + ids.notes.length + ids.journal.length + ids.media.length;

@@ -104,8 +104,6 @@
 	});
 </script>
 
-<!-- eslint-disable svelte/no-navigation-without-resolve -- every href comes from itemHref(), which already resolve()s -->
-
 <div class="horizontal-timeline">
 	<div class="zoom-controls">
 		<button type="button" aria-label="Dézoomer" onclick={() => zoomBy(1 / BUTTON_ZOOM_FACTOR)}>
@@ -135,9 +133,10 @@
 			<div class="track phase-track" style="height: {phaseLaneCount * LANE_HEIGHT}px;">
 				{#each visiblePhases as laned (laned.item.key)}
 					{@const [from, to] = itemRange(laned.item, today)}
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- itemHref() already returns a resolve()d path -->
 					<a
-						class="phase-band"
 						href={itemHref(laned.item)}
+						class="phase-band"
 						style="left: {scale.x(from)}px; width: {Math.max(
 							4,
 							scale.x(to) - scale.x(from)
@@ -146,37 +145,42 @@
 					>
 						<span class="phase-title">{laned.item.title}</span>
 					</a>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				{/each}
 			</div>
 
 			<div class="track main-track">
 				{#each visibleMain as item (item.key)}
 					{@const [from, to] = itemRange(item, today)}
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- itemHref() already returns a resolve()d path -->
 					<a
+						href={itemHref(item)}
 						class="marker"
 						class:important={item.type === 'important'}
-						href={itemHref(item)}
 						style="left: {scale.x(from)}px; width: {Math.max(2, scale.x(to) - scale.x(from))}px;"
 						aria-label={itemLabel(item)}
 					>
 						<span class="marker-dot"></span>
 						<span class="marker-title">{item.title}</span>
 					</a>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				{/each}
 			</div>
 
 			<div class="track histoire-track">
 				{#each visibleHistoire as item (item.key)}
 					{@const [from, to] = itemRange(item, today)}
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- itemHref() already returns a resolve()d path -->
 					<a
-						class="marker histoire"
 						href={itemHref(item)}
+						class="marker histoire"
 						style="left: {scale.x(from)}px; width: {Math.max(2, scale.x(to) - scale.x(from))}px;"
 						aria-label={itemLabel(item)}
 					>
 						<span class="marker-dot"></span>
 						<span class="marker-title">{item.title}</span>
 					</a>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				{/each}
 			</div>
 		</div>

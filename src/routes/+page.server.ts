@@ -1,5 +1,5 @@
-import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { requireUser } from '$lib/server/auth/session';
 import { getConfig } from '$lib/server/config';
 import { getDb } from '$lib/server/db';
 import { getTimeline, hasUserContent } from '$lib/server/timeline/query';
@@ -7,9 +7,7 @@ import { todayIn } from '$lib/server/time';
 import { parseTypesParam } from '$lib/timeline/prefs';
 
 export const load: PageServerLoad = ({ locals, url }) => {
-	if (!locals.user) {
-		redirect(303, '/login');
-	}
+	requireUser(locals);
 
 	const types = parseTypesParam(url.searchParams.get('types'));
 	const today = todayIn(getConfig().tz);

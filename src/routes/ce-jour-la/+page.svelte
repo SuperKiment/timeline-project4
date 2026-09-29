@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -19,29 +20,37 @@
 		<section>
 			<h2>{group.label}</h2>
 			<ul>
-				<!-- eslint-disable svelte/no-navigation-without-resolve -- target routes (/entries/[id], /entries/[id]/occurrences/[date], /journal/[date]) are added by T29/T30/T34, not yet present for resolve() to type-check -->
 				{#each group.items as item (item.kind === 'entry' ? `e${item.id}` : item.kind === 'occurrence' ? `o${item.seriesId}|${item.date}` : `j${item.day}|${item.author}`)}
 					<li>
 						{#if item.kind === 'entry'}
-							<a class="card" class:important={item.type === 'important'} href="/entries/{item.id}">
+							<a
+								class="card"
+								class:important={item.type === 'important'}
+								href={resolve('/entries/[id]', { id: String(item.id) })}
+							>
 								<span class="kind">{item.type === 'important' ? 'Important' : 'Souvenir'}</span>
 								<span class="title">{item.title}</span>
 							</a>
 						{:else if item.kind === 'occurrence'}
-							<a class="card" href="/entries/{item.seriesId}/occurrences/{item.date}">
+							<a
+								class="card"
+								href={resolve('/entries/[id]/occurrences/[date]', {
+									id: String(item.seriesId),
+									date: item.date
+								})}
+							>
 								<span class="kind">Récurrent</span>
 								<span class="title">{item.title}</span>
 								{#if item.note}<span class="excerpt">{item.note}</span>{/if}
 							</a>
 						{:else}
-							<a class="card" href="/journal/{item.day}">
+							<a class="card" href={resolve('/journal/[date]', { date: item.day })}>
 								<span class="kind">Journal — {item.author}</span>
 								<span class="excerpt">{item.excerpt}</span>
 							</a>
 						{/if}
 					</li>
 				{/each}
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			</ul>
 		</section>
 	{/each}

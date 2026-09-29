@@ -10,7 +10,7 @@ import {
 	listSeriesOccurrences,
 	upsertOccurrenceNote
 } from './occurrences';
-import { MAX_TEXT_LENGTH } from '../journal/service';
+import { MAX_TEXT_LENGTH } from '../time';
 
 // 2024-06-15 12:00 UTC is 2024-06-15 in Europe/Paris (default TZ), used as "now"
 // throughout so occurrence dates on/after that day count as future.

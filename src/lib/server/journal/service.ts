@@ -1,19 +1,9 @@
 import { and, asc, eq, gte, isNull, lte } from 'drizzle-orm';
-import { isValidFuzzy, parseIsoDay } from '../../dates/fuzzy';
 import { isValidMood } from '../../journal/moods';
 import type { Db } from '../db';
 import { journalEntries, users } from '../db/schema';
 import { HttpError } from '../http-error';
-import { isFutureDay } from '../time';
-
-const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Validates `day` as a real calendar date `YYYY-MM-DD`. Throws 400 otherwise. */
-export function assertValidDay(day: string): void {
-	if (!ISO_DAY_RE.test(day) || !isValidFuzzy({ ...parseIsoDay(day), precision: 'day' })) {
-		throw new HttpError(400, 'Date invalide.');
-	}
-}
+import { assertValidDay, isFutureDay, MAX_TEXT_LENGTH } from '../time';
 
 export interface JournalDayEntry {
 	id: number;
@@ -40,9 +30,6 @@ export interface CalendarDay {
 	day: string;
 	authors: { userId: number; displayName: string }[];
 }
-
-/** Max journal text length, in characters. */
-export const MAX_TEXT_LENGTH = 50_000;
 
 function assertValidText(text: string): void {
 	if (text.length > MAX_TEXT_LENGTH) {
@@ -194,7 +181,7 @@ export function softDeleteOwnDay(db: Db, userId: number, day: string, now = Date
 		throw new HttpError(404, 'Entrée de journal introuvable.');
 	}
 
-	db.update(journalEntries).set({ deletedAt: now }).where(eq(journalEntries.id, own.id)).run();
+	softDeleteJournal(db, own.id, userId, now);
 }
 
 /**

@@ -168,20 +168,6 @@ export function isPeriodValid(start: FuzzyDate, end: FuzzyDate | null): boolean 
 	return compareSortKeys(lastDay(end), firstDay(start)) >= 0;
 }
 
-/**
- * Whether `dayIso` falls within [firstDay(start), lastDay(end) or `today` if ongoing].
- */
-export function containsDay(
-	start: FuzzyDate,
-	end: FuzzyDate | null,
-	dayIso: string,
-	today: string
-): boolean {
-	const from = firstDay(start);
-	const to = end ? lastDay(end) : today;
-	return dayIso >= from && dayIso <= to;
-}
-
 export function parseIsoDay(isoDayStr: string): { year: number; month: number; day: number } {
 	const [year, month, day] = isoDayStr.split('-').map(Number);
 	return { year, month, day };

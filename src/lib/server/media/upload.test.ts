@@ -79,35 +79,10 @@ interface MultipartFile {
 
 /** Builds a `multipart/form-data` POST `Request` from plain fields plus an optional single file. */
 function buildUploadRequest(fields: Record<string, string>, file: MultipartFile | null): Request {
-	const boundary = `----timeline-test-${Math.random().toString(16).slice(2)}`;
-	const parts: Buffer[] = [];
-	for (const [name, value] of Object.entries(fields)) {
-		parts.push(
-			Buffer.from(
-				`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`
-			)
-		);
-	}
-	if (file) {
-		parts.push(
-			Buffer.from(
-				`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${file.filename}"\r\n` +
-					`Content-Type: ${file.contentType}\r\n\r\n`
-			)
-		);
-		parts.push(file.data);
-		parts.push(Buffer.from('\r\n'));
-	}
-	parts.push(Buffer.from(`--${boundary}--\r\n`));
-
-	return new Request('http://localhost/api/media', {
-		method: 'POST',
-		headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
-		body: Buffer.concat(parts)
-	});
+	return buildMultiPartRequest(fields, file ? [file] : []);
 }
 
-/** Like `buildUploadRequest` but with any number of file parts. */
+/** Builds a `multipart/form-data` POST `Request` from plain fields plus any number of file parts. */
 function buildMultiPartRequest(fields: Record<string, string>, files: MultipartFile[]): Request {
 	const boundary = `----timeline-test-${Math.random().toString(16).slice(2)}`;
 	const parts: Buffer[] = [];

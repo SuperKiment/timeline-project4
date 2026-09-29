@@ -30,8 +30,7 @@
 <!-- eslint-enable svelte/no-navigation-without-resolve -->
 
 <p>
-	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- /journal is added by T34, not yet present for resolve() to type-check -->
-	<a class="btn" href="/journal">Journal du jour</a>
+	<a class="btn" href={resolve('/journal')}>Journal du jour</a>
 </p>
 
 <div class="grid">
@@ -42,16 +41,14 @@
 	</div>
 	{#each cells as cell, i (cell?.day ?? `pad-${i}`)}
 		{#if cell}
-			<!-- eslint-disable svelte/no-navigation-without-resolve -- /journal/[date] is added by T34, not yet present for resolve() to type-check -->
 			<a
 				class="cell"
 				class:today={cell.isToday}
 				class:empty={cell.authors.length === 0}
-				href={`/journal/${cell.day}`}
+				href={resolve('/journal/[date]', { date: cell.day })}
 				data-day={cell.day}
 				aria-current={cell.isToday ? 'date' : undefined}
 			>
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				<span class="num">{cell.dayNumber}<span class="month-name"> {data.monthName}</span></span>
 				<span class="markers">
 					{#each cell.authors as author (author.userId)}

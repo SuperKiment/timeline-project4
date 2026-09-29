@@ -22,12 +22,9 @@
 	<ul>
 		{#each links as link (link.href)}
 			<li>
-				<!-- eslint-disable svelte/no-navigation-without-resolve -- /journal, /ce-jour-la, /recherche, /corbeille are added by later tasks (T34-T38), not yet present for resolve() to type-check; no `base` path is configured -->
-				<a
-					href={link.href === '/' ? resolve('/') : link.href}
-					aria-current={isActive(link.href) ? 'page' : undefined}>{link.label}</a
+				<a href={resolve(link.href)} aria-current={isActive(link.href) ? 'page' : undefined}
+					>{link.label}</a
 				>
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			</li>
 		{/each}
 	</ul>

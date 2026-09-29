@@ -1,23 +1,10 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { occurrenceOn, occurrences, type Frequency } from '../../dates/recurrence';
+import type { OrphanOccurrenceNote, SeriesOccurrence } from '../../entries/occurrence-types';
 import type { Db } from '../db';
 import { entries, media, occurrenceNotes } from '../db/schema';
 import { HttpError } from '../http-error';
-import { assertValidDay, MAX_TEXT_LENGTH } from '../journal/service';
-
-export interface SeriesOccurrence {
-	date: string;
-	note: string | null;
-	noteId: number | null;
-	mediaCount: number;
-}
-
-export interface OrphanOccurrenceNote {
-	id: number;
-	date: string;
-	note: string | null;
-	mediaCount: number;
-}
+import { assertValidDay, MAX_TEXT_LENGTH } from '../time';
 
 export interface SeriesOccurrencesResult {
 	occurrences: SeriesOccurrence[];

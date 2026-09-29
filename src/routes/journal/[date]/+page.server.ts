@@ -1,5 +1,6 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { requireUser } from '$lib/server/auth/session';
 import { getConfig } from '$lib/server/config';
 import { getDb } from '$lib/server/db';
 import { addDays } from '$lib/dates/fuzzy';
@@ -19,10 +20,7 @@ function loadDay(day: string) {
 }
 
 export const load: PageServerLoad = ({ locals, params }) => {
-	if (!locals.user) {
-		redirect(303, '/login');
-	}
-	const userId = locals.user.id;
+	const userId = requireUser(locals).id;
 	const day = loadDay(params.date);
 	const today = todayIn(getConfig().tz);
 
@@ -58,9 +56,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 
 export const actions: Actions = {
 	save: async ({ request, locals, params }) => {
-		if (!locals.user) {
-			redirect(303, '/login');
-		}
+		const user = requireUser(locals);
 		const data = await request.formData();
 		const text = data.get('text');
 		const rawMood = data.get('mood');
@@ -70,13 +66,7 @@ export const actions: Actions = {
 		const mood = typeof rawMood === 'string' && rawMood !== '' ? rawMood : null;
 
 		try {
-			const id = upsertOwnEntry(
-				getDb(),
-				locals.user.id,
-				params.date,
-				{ text, mood },
-				getConfig().tz
-			);
+			const id = upsertOwnEntry(getDb(), user.id, params.date, { text, mood }, getConfig().tz);
 			return { saved: true, id };
 		} catch (err) {
 			if (err instanceof HttpError) {
@@ -87,10 +77,7 @@ export const actions: Actions = {
 	},
 
 	delete: ({ locals, params }) => {
-		if (!locals.user) {
-			redirect(303, '/login');
-		}
-		const userId = locals.user.id;
+		const userId = requireUser(locals).id;
 		const db = getDb();
 		try {
 			softDeleteOwnDay(db, userId, params.date);

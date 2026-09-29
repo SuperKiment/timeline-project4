@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getConfig } from '../config';
 import type { Db } from '../db';
@@ -69,4 +70,13 @@ export function invalidateSession(db: Db, token: string): void {
 	db.delete(sessions)
 		.where(eq(sessions.id, hashToken(token)))
 		.run();
+}
+
+/**
+ * Returns the authenticated user, or redirects to the login page. Auth is
+ * enforced by hooks; this is the typed narrowing for page loads and actions.
+ */
+export function requireUser(locals: App.Locals): NonNullable<App.Locals['user']> {
+	if (!locals.user) redirect(303, '/login');
+	return locals.user;
 }

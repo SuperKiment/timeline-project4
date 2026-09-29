@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { requireUser } from '$lib/server/auth/session';
 import { getConfig } from '$lib/server/config';
 import { getDb } from '$lib/server/db';
 import { getEntry, updateEntry } from '$lib/server/entries/service';
@@ -9,9 +10,7 @@ import { validateEntryInput } from '$lib/server/entries/validate';
 import { entryFormValuesFromFormData, entryToFormValues } from '$lib/timeline/entry-form';
 
 export const load: PageServerLoad = ({ locals, params }) => {
-	if (!locals.user) {
-		redirect(303, '/login');
-	}
+	requireUser(locals);
 
 	const db = getDb();
 	const entry = getEntry(db, parseIdParamOr404(params.id));
@@ -27,9 +26,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 
 export const actions: Actions = {
 	default: async ({ request, locals, params }) => {
-		if (!locals.user) {
-			redirect(303, '/login');
-		}
+		const user = requireUser(locals);
 
 		const id = parseIdParamOr404(params.id);
 		const values = entryFormValuesFromFormData(await request.formData());
@@ -38,7 +35,7 @@ export const actions: Actions = {
 			return fail(400, { errors: result.errors, values });
 		}
 
-		const entry = updateEntry(getDb(), id, result.value, locals.user.id, Date.now());
+		const entry = updateEntry(getDb(), id, result.value, user.id, Date.now());
 		if (!entry) error(404, 'Entrée introuvable.');
 		redirect(303, `/entries/${entry.id}`);
 	}

@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { requireUser } from '$lib/server/auth/session';
 import { getConfig } from '$lib/server/config';
 import { getDb } from '$lib/server/db';
 import { listCalendar } from '$lib/server/journal/service';
@@ -27,9 +27,7 @@ export interface CalendarCell {
  * to the current month in the configured timezone (no error page).
  */
 export const load: PageServerLoad = ({ locals, url }) => {
-	if (!locals.user) {
-		redirect(303, '/login');
-	}
+	requireUser(locals);
 
 	const today = todayIn(getConfig().tz);
 	const ym = parseMonthParam(url.searchParams.get('mois')) ?? monthOfDay(today);

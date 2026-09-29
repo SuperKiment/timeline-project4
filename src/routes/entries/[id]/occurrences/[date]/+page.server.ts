@@ -1,5 +1,6 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { requireUser } from '$lib/server/auth/session';
 import { getConfig } from '$lib/server/config';
 import { getDb, type Db } from '$lib/server/db';
 import { getOccurrence, upsertOccurrenceNote } from '$lib/server/entries/occurrences';
@@ -18,9 +19,7 @@ function getOccurrenceOr404(db: Db, seriesId: number, date: string, today: strin
 }
 
 export const load: PageServerLoad = ({ locals, params }) => {
-	if (!locals.user) {
-		redirect(303, '/login');
-	}
+	requireUser(locals);
 
 	const db = getDb();
 	const seriesId = parseIdParamOr404(params.id);
@@ -41,14 +40,11 @@ export const load: PageServerLoad = ({ locals, params }) => {
 
 export const actions: Actions = {
 	save: async ({ request, locals, params }) => {
-		if (!locals.user) {
-			redirect(303, '/login');
-		}
+		const user = requireUser(locals);
 
 		const seriesId = parseIdParamOr404(params.id);
 		const tz = getConfig().tz;
 		const db = getDb();
-		getOccurrenceOr404(db, seriesId, params.date, todayIn(tz));
 		const raw = (await request.formData()).get('note');
 		if (typeof raw !== 'string') {
 			return fail(400, { message: 'Note invalide.', note: '' });
@@ -61,13 +57,17 @@ export const actions: Actions = {
 				seriesId,
 				params.date,
 				text === '' ? null : text,
-				locals.user.id,
+				user.id,
 				Date.now(),
 				todayIn(tz)
 			);
 			return { saved: true };
 		} catch (err) {
-			if (err instanceof HttpError) return fail(err.status, { message: err.message, note: raw });
+			if (err instanceof HttpError) {
+				// Invalid series/date is a page 404; anything else (e.g. text too long) is a form error.
+				getOccurrenceOr404(db, seriesId, params.date, todayIn(tz));
+				return fail(err.status, { message: err.message, note: raw });
+			}
 			throw err;
 		}
 	}
