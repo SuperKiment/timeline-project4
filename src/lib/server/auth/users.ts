@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import type { Db } from '../db';
 import { users } from '../db/schema';
 import { hashPassword } from './password';
@@ -53,4 +53,21 @@ export async function createUser(
 /** Finds a user by exact username match, or null if none exists. */
 export function findUserByUsername(db: Db, username: string): UserRecord | null {
 	return db.select().from(users).where(eq(users.username, username)).get() ?? null;
+}
+
+/**
+ * Maps user ids to display names in one query. Ids are deduplicated; unknown
+ * ids are absent from the result (use `has`, an empty name is still a user).
+ */
+export function getDisplayNames(db: Db, ids: number[]): Map<number, string> {
+	const unique = [...new Set(ids)];
+	if (unique.length === 0) return new Map();
+	return new Map(
+		db
+			.select({ id: users.id, displayName: users.displayName })
+			.from(users)
+			.where(inArray(users.id, unique))
+			.all()
+			.map((u) => [u.id, u.displayName])
+	);
 }

@@ -178,7 +178,7 @@ files: src/lib/dates/fuzzy-form.ts, src/lib/dates/fuzzy-form.test.ts, src/lib/co
 do: `fuzzy-form.ts`: `parseFuzzyFormFields({precision, year, month, day})` → FuzzyDate|error (French), `fuzzyToFormFields`. Component (Svelte 5 runes, props `name`, `value`, `label`, `required`, `allowedPrecisions`): precision segmented control (Jour/Mois/Année), year number input, month `<select>` French months, day input; hidden inputs `<name>_precision/_year/_month/_day`; mobile-friendly (inputmode numeric, 44px).
 exit: `npx vitest run src/lib/dates/fuzzy-form.test.ts` passes; `npm run check` clean (FR-5, FR-14).
 
-### T27: Entry form and create/edit routes  [doing]  (lite: no)
+### T27: Entry form and create/edit routes  [done]  (lite: no)
 deps: T10, T24, T26
 files: src/lib/components/EntryForm.svelte, src/lib/components/TagInput.svelte, src/routes/entries/new/+page.svelte, src/routes/entries/new/+page.server.ts, src/routes/entries/[id]/edit/+page.svelte, src/routes/entries/[id]/edit/+page.server.ts, e2e/entries-form.spec.ts
 do: (NOTE from B4 fixes: `validateEntryInput` takes `start`/`end` as `FuzzyFormFields` (src/lib/dates/fuzzy-form.ts) — pass the FuzzyDateInput fields straight through; parsing/messages come from `parseFuzzyFormFields`.) EntryForm: type select (Souvenir, Important, Phase, Récurrent, Histoire) toggling fields: start FuzzyDateInput (day-only for récurrent, labeled "Date d'origine"), end FuzzyDateInput for phase/histoire ("Fin (vide = en cours)") and récurrent end (day), frequency (Annuel/Mensuel) for récurrent, title, description textarea (markdown léger hint), location, TagInput (comma/enter chips, hidden `tags` JSON). `new` load reads `?type=&date=YYYY-MM-DD` to prefill (FR-18 promote). Actions call validateEntryInput/createEntry/updateEntry with `locals.user.id`, return `fail(400, {errors, values})` preserving input; success → redirect `/entries/<id>`. Edit page shows created/updated by+date (FR-6).
@@ -190,7 +190,7 @@ files: src/lib/media/upload-client.ts, src/lib/components/MediaUploader.svelte, 
 do: `upload-client.ts`: `uploadFiles(files, ownerFields, onProgress)` via XMLHttpRequest multipart to `/api/media` (one request per file, sequential), resolves JSON or rejects with server French message; 401 → `location.href = '/login?redirectTo=...'`. MediaUploader: `<input type=file multiple accept="image/*,video/mp4,video/quicktime,video/webm">`, per-file progress bars, error list, `onuploaded` callback (then `invalidateAll()`). MediaGallery: grid of thumbs (`loading="lazy"`, `/media/<id>/thumb`), photo opens full image in `<dialog>`, video → `<video controls preload="metadata" poster=...>` of `/media/<id>/original` (generic video icon when no poster), per-item ConfirmButton delete → `DELETE /api/media/<id>`.
 exit: `npm run check` and `npm run lint` clean; behavior verified by T29 e2e (FR-21, FR-22, NFR-2).
 
-### T29: Entry detail page with media and journal links  [todo]  (lite: no)
+### T29: Entry detail page with media and journal links  [doing]  (lite: no)
 deps: T7, T14, T27, T28
 files: src/routes/entries/[id]/+page.svelte, src/routes/entries/[id]/+page.server.ts, e2e/entry-detail.spec.ts, e2e/media.spec.ts
 do: Load: getEntry (404 if missing/deleted), rendered markdown, formatted fuzzy dates (EC-1 "en cours"), tags, location, creator/modifier names + dates, visible media, `listJournalDaysForEntry` links to `/journal/<day>`. Actions: `delete` → softDeleteEntry → redirect `/` ; Edit link. Includes MediaGallery + MediaUploader (ownerKind entry). `important` styled accent.
@@ -214,31 +214,31 @@ files: src/lib/timeline/scale.ts, src/lib/timeline/scale.test.ts, src/lib/compon
 do: (NOTE from B4: key `{#each}` by `item.key` — `id` is shared by all occurrences of a series.) `scale.ts`: `makeScale(minDay, maxDay, pxPerDay)` → `x(day)`, `ticks(zoom: 'year'|'month')`; zoom levels continuous between year (≈1 px/day) and month (≈8 px/day) with clamp. Component props `items`, `today`: horizontally scrollable frise; tracks top→bottom: phase bands (own greedy lane calc `phaseLanes()` in scale.ts, independent of T31), main track markers (items in sort order, fuzzy items placed at firstDay with width to lastDay), separate grey Histoire track; zoom via wheel (ctrl/plain wheel with preventDefault) and +/− buttons (44px); initial scroll to today; markers link to `/entries/<id>` or occurrence page; render only markers within viewport ± buffer.
 exit: `npx vitest run src/lib/timeline/scale.test.ts` passes (x monotonic, tick labels in French); `npm run check` clean (FR-10).
 
-### T33: Home timeline page (filters, view toggle, empty state)  [todo]  (lite: no)
+### T33: Home timeline page (filters, view toggle, empty state)  [doing]  (lite: no)
 deps: T24, T27, T31, T32
 files: src/routes/+page.svelte, src/routes/+page.server.ts, src/lib/timeline/prefs.ts, src/lib/components/timeline/TypeFilters.svelte, src/lib/components/timeline/ViewToggle.svelte, e2e/timeline.spec.ts
 do: Load `getTimeline(db, {types from ?types= (default all 5), today: todayIn(tz)})`. TypeFilters: 5 toggle chips updating URL `?types=` (goto, keepFocus). ViewToggle vertical/horizontal; `prefs.ts` stores choice in localStorage `timeline.view`; default by `matchMedia('(min-width: 1024px)')`. Empty state when no non-histoire items: "Votre timeline est vide" + CTA button "Ajouter un souvenir" → /entries/new (EC-14). "Ajouter" FAB always visible. Link "Ce jour-là" at top (FR-20 access from home).
 exit: `npm run test:e2e -- e2e/timeline.spec.ts` passes on both projects: fresh data shows empty-state CTA; create via UI one entry of each of the 5 types with year/month/day precisions → DOM order matches expected in vertical AND horizontal (toggle) views; hiding `histoire` filter removes histoire items; toggle choice persists after reload (AC-3, FR-9, FR-10, FR-11, EC-14).
 
-### T34: Journal day page and journal API  [doing]  (lite: no)
+### T34: Journal day page and journal API  [done]  (lite: no)
 deps: T7, T14, T24, T28
 files: src/lib/journal/draft.ts, src/routes/journal/+page.server.ts, src/routes/journal/[date]/+page.svelte, src/routes/journal/[date]/+page.server.ts, src/routes/api/journal/[date]/+server.ts, e2e/journal.spec.ts
 do: (NOTE from B4 fixes: journal service `now` params are ms-epoch numbers; `getDay(db, day, tz, now)` / `upsertOwnEntry(db, userId, day, input, tz, now)`; invalid `day` → `HttpError(400)`.) `/journal` → redirect `/journal/<todayIn(tz)>`. Day page: prev/next day links (next hidden beyond today), `<input type=date>` jump, two columns (stack < 768px): own entry editable (textarea, mood radio chips from MOODS, save action, ConfirmButton delete, MediaUploader ownerKind journal after first save), partner's rendered read-only (markdown HTML, mood, MediaGallery without delete). Future day: read-only message "Impossible d'écrire pour un jour futur". `draft.ts`: autosave textarea to localStorage `journal-draft:<userId>:<day>` on input, restore if newer than server text, clear on successful save (EC-13). "Promouvoir en souvenir" link → `/entries/new?type=souvenir&date=<day>`. API: PUT `{text, mood}` → upsert own (400 future), DELETE → soft delete own; errors map HttpError status (403 on other's id via `?id=`).
 exit: `npm run test:e2e -- e2e/journal.spec.ts` passes: alice writes, bob (second context) sees alice's text and has no edit control for it; bob `PUT/DELETE /api/journal/<day>?id=<aliceId>` → 403; PUT for tomorrow → 400; draft restored after reload without save (AC-6, FR-15..18, EC-7, EC-8, EC-13).
 
-### T35: Journal calendar view  [doing]  (lite: no)
+### T35: Journal calendar view  [done]  (lite: no)
 deps: T14, T24
 files: src/routes/journal/calendrier/+page.svelte, src/routes/journal/calendrier/+page.server.ts, e2e/journal-calendar.spec.ts
 do: Month grid (`?mois=YYYY-MM`, default current month in TZ) with prev/next month; each day cell links to `/journal/<day>` and shows author initials/colored dots per author from `listCalendar`; below 768px render as list of days having entries. Page has a "Journal du jour" link to /journal; the Journal nav tab stays pointed at /journal (T34 files untouched).
 exit: `npm run test:e2e -- e2e/journal-calendar.spec.ts` passes: after alice writes today, today's cell shows alice's marker and not bob's (FR-19).
 
-### T36: Search page  [todo]  (lite: no)
+### T36: Search page  [doing]  (lite: no)
 deps: T15, T27, T34
 files: src/routes/recherche/+page.svelte, src/routes/recherche/+page.server.ts, e2e/search.spec.ts
 do: GET form `?q=`; load runs `search(db, q)`; results list with kind badge (Entrée/Journal), title or day+author, snippet (text only, escaped), link to url. Empty message "Aucun résultat pour « q »".
 exit: `npm run test:e2e -- e2e/search.spec.ts` passes: word written in a journal (via API) and an entry description (via form) → 2 clickable results; query `"*-` shows empty message, HTTP 200 (AC-9, FR-12, EC-15).
 
-### T37: "Ce jour-là" page  [doing]  (lite: no)
+### T37: "Ce jour-là" page  [done]  (lite: no)
 deps: T16, T24
 files: src/routes/ce-jour-la/+page.svelte, src/routes/ce-jour-la/+page.server.ts, e2e/ce-jour-la.spec.ts
 do: Load `onThisDay(db, todayIn(tz))`; heading "Ce jour-là — <JJ mois>"; sections per year ("Il y a N ans — YYYY") with items linking to entry / occurrence page / journal day. Empty message "Rien ne s'est passé un <JJ mois> les années précédentes… pour l'instant."

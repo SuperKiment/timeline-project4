@@ -3,7 +3,7 @@ import { createTestDb } from '../db/test-db';
 import { LoginRateLimiter } from './rate-limit';
 import { hashPassword, verifyPassword } from './password';
 import { createSession, invalidateSession, validateSession } from './session';
-import { createUser, findUserByUsername } from './users';
+import { createUser, findUserByUsername, getDisplayNames } from './users';
 
 describe('hashPassword / verifyPassword', () => {
 	it('verifies the right password and rejects a wrong one', async () => {
@@ -35,6 +35,25 @@ describe('createUser', () => {
 		await expect(
 			createUser(db, { username: 'alice', displayName: 'Alice bis', password: 'pw2' })
 		).rejects.toThrow();
+	});
+});
+
+describe('getDisplayNames', () => {
+	it('maps deduplicated ids, omits unknown ones, keeps empty names', async () => {
+		const db = createTestDb();
+		const alice = await createUser(db, { username: 'alice', displayName: 'Alice', password: 'pw' });
+		const bob = await createUser(db, { username: 'bob', displayName: '', password: 'pw' });
+
+		const names = getDisplayNames(db, [alice.id, alice.id, bob.id, 999]);
+		expect(names.size).toBe(2);
+		expect(names.get(alice.id)).toBe('Alice');
+		expect(names.has(bob.id)).toBe(true);
+		expect(names.get(bob.id)).toBe('');
+		expect(names.has(999)).toBe(false);
+	});
+
+	it('returns an empty map for no ids', () => {
+		expect(getDisplayNames(createTestDb(), []).size).toBe(0);
 	});
 });
 

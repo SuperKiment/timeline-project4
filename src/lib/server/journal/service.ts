@@ -41,6 +41,15 @@ export interface CalendarDay {
 	authors: { userId: number; displayName: string }[];
 }
 
+/** Max journal text length, in characters. */
+export const MAX_TEXT_LENGTH = 50_000;
+
+function assertValidText(text: string): void {
+	if (text.length > MAX_TEXT_LENGTH) {
+		throw new HttpError(400, 'Texte trop long (50 000 caractères max).');
+	}
+}
+
 function assertValidMood(mood: string | null | undefined): void {
 	if (mood != null && !isValidMood(mood)) {
 		throw new HttpError(400, 'Humeur invalide.');
@@ -90,6 +99,7 @@ export function upsertOwnEntry(
 	if (isFutureDay(day, tz, new Date(now))) {
 		throw new HttpError(400, "Impossible d'écrire dans le journal pour un jour futur.");
 	}
+	assertValidText(input.text);
 	assertValidMood(input.mood);
 
 	const ts = now;
@@ -145,6 +155,7 @@ export function updateEntryById(
 	input: JournalEntryInput,
 	now = Date.now()
 ): void {
+	assertValidText(input.text);
 	assertValidMood(input.mood);
 	requireOwnEntry(db, id, userId);
 
@@ -159,6 +170,24 @@ export function softDeleteJournal(db: Db, id: number, userId: number, now = Date
 	requireOwnEntry(db, id, userId);
 
 	db.update(journalEntries).set({ deletedAt: now }).where(eq(journalEntries.id, id)).run();
+}
+
+/**
+ * Soft-deletes the caller's own live entry for `day`. Throws 404 when the
+ * caller has none that day (or `day` is invalid → 400).
+ */
+export function softDeleteOwnDay(
+	db: Db,
+	userId: number,
+	day: string,
+	tz: string,
+	now = Date.now()
+): void {
+	const own = getDay(db, day, tz, now).entries.find((e) => e.userId === userId);
+	if (!own) {
+		throw new HttpError(404, 'Entrée de journal introuvable.');
+	}
+	softDeleteJournal(db, own.id, userId, now);
 }
 
 /**

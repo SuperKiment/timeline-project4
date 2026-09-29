@@ -1,7 +1,12 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { clearAllDrafts } from '$lib/journal/draft';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// Visiting /login means there is no session: drop drafts left by a previous user.
+	onMount(() => clearAllDrafts(localStorage));
 </script>
 
 <svelte:head>

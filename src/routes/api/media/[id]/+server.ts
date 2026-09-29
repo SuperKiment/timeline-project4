@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
-import { HttpError } from '$lib/server/http-error';
+import { parseIdParam, rethrowAsKitError } from '$lib/server/http-error';
 import { deleteMedia } from '$lib/server/media/upload';
 
 /**
@@ -14,18 +14,11 @@ export const DELETE: RequestHandler = ({ params, locals }) => {
 		error(401, 'Authentification requise.');
 	}
 
-	const id = Number(params.id);
-	if (!Number.isInteger(id)) {
-		error(400, 'Identifiant invalide.');
-	}
-
 	try {
+		const id = parseIdParam(params.id);
 		deleteMedia(getDb(), id, locals.user.id, Date.now());
 	} catch (err) {
-		if (err instanceof HttpError) {
-			error(err.status, err.message);
-		}
-		throw err;
+		rethrowAsKitError(err);
 	}
 
 	return json({ ok: true });

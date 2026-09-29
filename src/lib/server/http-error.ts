@@ -1,3 +1,5 @@
+import { error } from '@sveltejs/kit';
+
 /**
  * Error carrying an HTTP status code. Services throw it for expected failure
  * cases (validation, authorization, not found); routes/hooks catch it and
@@ -11,4 +13,24 @@ export class HttpError extends Error {
 		super(message);
 		this.name = 'HttpError';
 	}
+}
+
+/**
+ * Parses a route `[id]` param into a positive safe integer. Throws
+ * `HttpError(400)` for anything else (missing, non-numeric, zero, unsafe).
+ */
+export function parseIdParam(raw: string | undefined): number {
+	if (raw === undefined || !/^\d+$/.test(raw)) throw new HttpError(400, 'Identifiant invalide.');
+	const id = Number(raw);
+	if (!Number.isSafeInteger(id) || id < 1) throw new HttpError(400, 'Identifiant invalide.');
+	return id;
+}
+
+/**
+ * Turns a service `HttpError` into the matching SvelteKit HTTP error
+ * (`{ message }` body); any other error is rethrown untouched.
+ */
+export function rethrowAsKitError(err: unknown): never {
+	if (err instanceof HttpError) error(err.status, err.message);
+	throw err;
 }

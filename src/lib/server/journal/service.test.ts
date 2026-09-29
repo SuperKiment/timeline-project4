@@ -7,6 +7,7 @@ import {
 	getDay,
 	listCalendar,
 	softDeleteJournal,
+	softDeleteOwnDay,
 	updateEntryById,
 	upsertOwnEntry
 } from './service';
@@ -167,6 +168,59 @@ describe('softDeleteJournal', () => {
 
 		const result = getDay(db, '2026-06-10', TZ, NOW);
 		expect(result.entries).toHaveLength(0);
+	});
+});
+
+describe('softDeleteOwnDay', () => {
+	it("soft-deletes the caller's own entry for the day only", () => {
+		const db = createTestDb();
+		const alice = insertUser(db, 'alice', 'Alice');
+		const bob = insertUser(db, 'bob', 'Bob');
+		upsertOwnEntry(db, alice, '2026-06-10', { text: 'A' }, TZ, NOW);
+		upsertOwnEntry(db, bob, '2026-06-10', { text: 'B' }, TZ, NOW);
+
+		softDeleteOwnDay(db, alice, '2026-06-10', TZ, NOW);
+
+		const entries = getDay(db, '2026-06-10', TZ, NOW).entries;
+		expect(entries.map((e) => e.userId)).toEqual([bob]);
+	});
+
+	it('throws 404 when the caller has no entry that day', () => {
+		const db = createTestDb();
+		const alice = insertUser(db, 'alice', 'Alice');
+		const bob = insertUser(db, 'bob', 'Bob');
+		upsertOwnEntry(db, bob, '2026-06-10', { text: 'B' }, TZ, NOW);
+
+		expect(() => softDeleteOwnDay(db, alice, '2026-06-10', TZ, NOW)).toThrow(
+			expect.objectContaining({ status: 404, message: 'Entrée de journal introuvable.' })
+		);
+		expect(getDay(db, '2026-06-10', TZ, NOW).entries).toHaveLength(1);
+	});
+
+	it('throws 400 for an invalid day', () => {
+		const db = createTestDb();
+		const alice = insertUser(db, 'alice', 'Alice');
+		expect(() => softDeleteOwnDay(db, alice, '2026-02-30', TZ, NOW)).toThrow(
+			expect.objectContaining({ status: 400 })
+		);
+	});
+});
+
+describe('text length cap', () => {
+	it('accepts exactly 50 000 characters and rejects more (upsert and update by id)', () => {
+		const db = createTestDb();
+		const alice = insertUser(db, 'alice', 'Alice');
+		const id = upsertOwnEntry(db, alice, '2026-06-10', { text: 'a'.repeat(50_000) }, TZ, NOW);
+
+		const tooLong = { text: 'a'.repeat(50_001) };
+		const expected = expect.objectContaining({
+			status: 400,
+			message: 'Texte trop long (50 000 caractères max).'
+		});
+		expect(() => upsertOwnEntry(db, alice, '2026-06-11', tooLong, TZ, NOW)).toThrow(expected);
+		expect(() => upsertOwnEntry(db, alice, '2026-06-10', tooLong, TZ, NOW)).toThrow(expected);
+		expect(() => updateEntryById(db, id, alice, tooLong, NOW)).toThrow(expected);
+		expect(getDay(db, '2026-06-10', TZ, NOW).entries[0].text).toHaveLength(50_000);
 	});
 });
 
