@@ -64,7 +64,7 @@ export const DELETE: RequestHandler = ({ params, url, locals }) => {
 		if (targetId !== null) {
 			softDeleteJournal(db, targetId, userId, Date.now());
 		} else {
-			softDeleteOwnDay(db, userId, params.date, getConfig().tz, Date.now());
+			softDeleteOwnDay(db, userId, params.date, Date.now());
 		}
 		return json({ ok: true });
 	} catch (err) {

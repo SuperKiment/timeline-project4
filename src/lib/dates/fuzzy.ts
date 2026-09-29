@@ -142,6 +142,17 @@ export function formatFr(fd: FuzzyDate): string {
 	return `${fd.year}`;
 }
 
+/**
+ * French display of a period: "mars 2018 – 2020", "mars 2018 – en cours" (EC-1,
+ * `ongoing` and no end), or just the start when there is no distinct end.
+ */
+export function formatPeriodFr(start: FuzzyDate, end: FuzzyDate | null, ongoing = false): string {
+	const from = formatFr(start);
+	if (!end) return ongoing ? `${from} – en cours` : from;
+	const to = formatFr(end);
+	return to === from ? from : `${from} – ${to}`;
+}
+
 /** French day+month display of an ISO day, no year: "21 septembre". */
 export function formatDayMonthFr(isoDayStr: string): string {
 	const [, monthStr, dayStr] = isoDayStr.split('-');

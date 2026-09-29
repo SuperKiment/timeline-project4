@@ -56,18 +56,13 @@ export const MAX_TAGS = 30;
 /** Maximum length of a single tag (longer ones are truncated). */
 export const MAX_TAG_LENGTH = 50;
 
-/** Drops duplicate tags, keeping first occurrences (order kept). */
-export function dedupeTags(tags: readonly string[]): string[] {
-	return [...new Set(tags)];
-}
-
 /**
  * Trims and truncates each tag to `MAX_TAG_LENGTH`, drops empty ones and
  * duplicates, then keeps at most `MAX_TAGS` (extras are dropped).
  */
 function normalizeTags(tags: readonly string[]): string[] {
 	const cleaned = tags.map((t) => t.trim().slice(0, MAX_TAG_LENGTH).trim()).filter((t) => t !== '');
-	return dedupeTags(cleaned).slice(0, MAX_TAGS);
+	return [...new Set(cleaned)].slice(0, MAX_TAGS);
 }
 
 /**

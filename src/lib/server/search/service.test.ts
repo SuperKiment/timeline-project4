@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { entries, journalEntries, users } from '../db/schema';
 import { createTestDb } from '../db/test-db';
-import { search, toFtsQuery } from './service';
+import { MAX_QUERY_LENGTH, MAX_QUERY_TOKENS, search, toFtsQuery } from './service';
 
 const now = Date.now();
 
@@ -65,6 +65,17 @@ describe('toFtsQuery', () => {
 		expect(toFtsQuery('')).toBeNull();
 		expect(toFtsQuery('   ')).toBeNull();
 		expect(toFtsQuery('"*-')).toBeNull();
+	});
+
+	it('truncates input to MAX_QUERY_LENGTH characters', () => {
+		const q = toFtsQuery('a'.repeat(MAX_QUERY_LENGTH * 3));
+		expect(q).toBe(`"${'a'.repeat(MAX_QUERY_LENGTH)}"*`);
+	});
+
+	it('keeps at most MAX_QUERY_TOKENS tokens', () => {
+		const words = Array.from({ length: MAX_QUERY_TOKENS + 5 }, (_, i) => `w${i}`);
+		const q = toFtsQuery(words.join(' '));
+		expect(q?.split(' ')).toEqual(words.slice(0, MAX_QUERY_TOKENS).map((w) => `"${w}"*`));
 	});
 });
 

@@ -14,8 +14,13 @@ import type { Db } from '../db';
  */
 
 export type SearchResult =
-	| { kind: 'entry'; id: number; title: string; snippet: string; url: string }
-	| { kind: 'journal'; day: string; author: string; snippet: string; url: string };
+	| { kind: 'entry'; id: number; title: string; snippet: string }
+	| { kind: 'journal'; id: number; day: string; author: string; snippet: string };
+
+/** Max characters of user input considered for a query (the rest is dropped). */
+export const MAX_QUERY_LENGTH = 200;
+/** Max number of search tokens kept per query (the rest is dropped). */
+export const MAX_QUERY_TOKENS = 10;
 
 const SNIPPET_ELLIPSIS = '…';
 const SNIPPET_TOKENS = 10;
@@ -25,14 +30,17 @@ const SNIPPET_TOKENS = 10;
  * splits it into tokens, `"` and FTS5 syntax characters are stripped from
  * each token (so user input can never inject FTS operators or break the
  * query), and each remaining token becomes a quoted prefix match (`"tok"*`).
- * Tokens joined with a space are an implicit AND. Returns null when there is
+ * Input is capped to `MAX_QUERY_LENGTH` characters and `MAX_QUERY_TOKENS`
+ * tokens. Tokens joined with a space are an implicit AND. Returns null when there is
  * nothing left to search for (callers should short-circuit to no results).
  */
 export function toFtsQuery(input: string): string | null {
 	const tokens = input
+		.slice(0, MAX_QUERY_LENGTH)
 		.split(/\s+/)
 		.map((token) => token.replace(/["*^:()+~-]/g, ''))
-		.filter((token) => token.length > 0);
+		.filter((token) => token.length > 0)
+		.slice(0, MAX_QUERY_TOKENS);
 
 	if (tokens.length === 0) return null;
 
@@ -46,6 +54,7 @@ interface EntryHit {
 }
 
 interface JournalHit {
+	id: number;
 	day: string;
 	author: string;
 	snippet: string;
@@ -80,7 +89,7 @@ export function search(db: Db, q: string, limit = 50): SearchResult[] {
 	`);
 
 	const journalHits = db.all<JournalHit>(sql`
-		select j.day as day, u.display_name as author,
+		select j.id as id, j.day as day, u.display_name as author,
 			snippet(journal_fts, -1, '', '', ${SNIPPET_ELLIPSIS}, ${SNIPPET_TOKENS}) as snippet
 		from journal_fts
 		join journal_entries j on j.id = journal_fts.rowid
@@ -94,16 +103,15 @@ export function search(db: Db, q: string, limit = 50): SearchResult[] {
 		kind: 'entry' as const,
 		id: hit.id,
 		title: hit.title,
-		snippet: hit.snippet,
-		url: `/entries/${hit.id}`
+		snippet: hit.snippet
 	}));
 
 	const journalResults: SearchResult[] = journalHits.map((hit) => ({
 		kind: 'journal' as const,
+		id: hit.id,
 		day: hit.day,
 		author: hit.author,
-		snippet: hit.snippet,
-		url: `/journal/${hit.day}`
+		snippet: hit.snippet
 	}));
 
 	const interleaved: SearchResult[] = [];

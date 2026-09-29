@@ -14,6 +14,25 @@ export interface GetTimelineOptions {
 
 const OPEN_ENDED_TYPES: ReadonlySet<EntryType> = new Set(['phase', 'histoire']);
 
+/** True for an open-ended type (phase/histoire) that has no end date yet (EC-1). */
+export function isOngoing(type: EntryType, endSort: string | null): boolean {
+	return OPEN_ENDED_TYPES.has(type) && endSort === null;
+}
+
+/**
+ * Whether the user has any real content: at least one visible (non-deleted)
+ * entry that wasn't seeded (EC-14). User-created `histoire` entries count.
+ */
+export function hasUserContent(db: Db): boolean {
+	const row = db
+		.select({ id: entries.id })
+		.from(entries)
+		.where(and(isNull(entries.deletedAt), isNull(entries.seedKey)))
+		.limit(1)
+		.get();
+	return row !== undefined;
+}
+
 /**
  * Builds the full timeline: visible (non-deleted) entries of the requested
  * `types`, with `recurrent` series rows replaced by one `occurrence` item per
@@ -136,7 +155,7 @@ export function getTimeline(db: Db, { types, today }: GetTimelineOptions): Timel
 					startPrecision: row.startPrecision,
 					endSort: row.endSort,
 					endPrecision: row.endPrecision,
-					ongoing: OPEN_ENDED_TYPES.has(row.type) && row.endSort === null,
+					ongoing: isOngoing(row.type, row.endSort),
 					thumbUrl: thumbId !== undefined ? `/media/${thumbId}/thumb` : null,
 					location: row.location
 				},

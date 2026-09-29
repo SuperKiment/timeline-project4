@@ -27,6 +27,18 @@ export function parseIdParam(raw: string | undefined): number {
 }
 
 /**
+ * Page variant of `parseIdParam`: any invalid id is a SvelteKit 404 (pages
+ * treat a malformed id like a missing entry) instead of a 400.
+ */
+export function parseIdParamOr404(raw: string | undefined): number {
+	try {
+		return parseIdParam(raw);
+	} catch {
+		error(404, 'Entrée introuvable.');
+	}
+}
+
+/**
  * Turns a service `HttpError` into the matching SvelteKit HTTP error
  * (`{ message }` body); any other error is rethrown untouched.
  */

@@ -8,7 +8,8 @@
  * returned by `getTimeline` (per Conventions/EC-3).
  */
 
-import { compareSortKeys, formatFr, fromSortKey, isoDay, daysInMonth } from '../dates/fuzzy';
+import { resolve } from '$app/paths';
+import { compareSortKeys, formatPeriodFr, fromSortKey, isoDay, daysInMonth } from '../dates/fuzzy';
 import { itemRange, phaseLanes } from './scale';
 import type { TimelineItem } from './types';
 
@@ -193,21 +194,15 @@ export function activeLanes(phaseLanes: PhaseLane[], fromDay: string, toDay: str
 
 /** "12 mars 2018" / "mars 2018 – en cours" / "2018 – 2020" style display for a card. */
 export function formatItemDateRange(item: TimelineItem): string {
-	const start = formatFr(fromSortKey(item.startSort));
-	if (item.ongoing) {
-		return `${start} – en cours`;
-	}
-	if (item.endSort) {
-		const end = formatFr(fromSortKey(item.endSort));
-		return end === start ? start : `${start} – ${end}`;
-	}
-	return start;
+	const end = item.ongoing || !item.endSort ? null : fromSortKey(item.endSort);
+	return formatPeriodFr(fromSortKey(item.startSort), end, item.ongoing);
 }
 
-/** Detail page URL for a timeline item: entry page, or occurrence page for `occurrence` items. */
+/** Resolved detail page URL for a timeline item: entry page, or occurrence page for `occurrence` items. */
 export function itemHref(item: TimelineItem): string {
 	if (item.kind === 'occurrence') {
-		return `/entries/${item.seriesId}/occurrences/${item.occurrenceDate}`;
+		// TODO(T30): replace the cast with a typed resolve() once the occurrence route exists.
+		return resolve(`/entries/${item.seriesId}/occurrences/${item.occurrenceDate}` as '/');
 	}
-	return `/entries/${item.id}`;
+	return resolve('/entries/[id]', { id: String(item.id) });
 }

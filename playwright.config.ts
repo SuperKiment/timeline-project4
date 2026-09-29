@@ -19,7 +19,25 @@ export default defineConfig({
 		reuseExistingServer: !process.env.CI
 	},
 	projects: [
-		{ name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-		{ name: 'mobile', use: { ...devices['Pixel 7'] } }
+		// "Fresh data" specs must run before anything else writes to the shared DB
+		// (desktop and mobile run in parallel on one database), so they get their own
+		// project that both other projects depend on.
+		{
+			name: 'fresh',
+			testMatch: /timeline-empty\.spec\.ts/,
+			use: { ...devices['Desktop Chrome'] }
+		},
+		{
+			name: 'desktop',
+			dependencies: ['fresh'],
+			testIgnore: /timeline-empty\.spec\.ts/,
+			use: { ...devices['Desktop Chrome'] }
+		},
+		{
+			name: 'mobile',
+			dependencies: ['fresh'],
+			testIgnore: /timeline-empty\.spec\.ts/,
+			use: { ...devices['Pixel 7'] }
+		}
 	]
 });

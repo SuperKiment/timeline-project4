@@ -176,18 +176,25 @@ export function softDeleteJournal(db: Db, id: number, userId: number, now = Date
  * Soft-deletes the caller's own live entry for `day`. Throws 404 when the
  * caller has none that day (or `day` is invalid → 400).
  */
-export function softDeleteOwnDay(
-	db: Db,
-	userId: number,
-	day: string,
-	tz: string,
-	now = Date.now()
-): void {
-	const own = getDay(db, day, tz, now).entries.find((e) => e.userId === userId);
+export function softDeleteOwnDay(db: Db, userId: number, day: string, now = Date.now()): void {
+	assertValidDay(day);
+
+	const own = db
+		.select({ id: journalEntries.id })
+		.from(journalEntries)
+		.where(
+			and(
+				eq(journalEntries.userId, userId),
+				eq(journalEntries.day, day),
+				isNull(journalEntries.deletedAt)
+			)
+		)
+		.get();
 	if (!own) {
 		throw new HttpError(404, 'Entrée de journal introuvable.');
 	}
-	softDeleteJournal(db, own.id, userId, now);
+
+	db.update(journalEntries).set({ deletedAt: now }).where(eq(journalEntries.id, own.id)).run();
 }
 
 /**

@@ -190,7 +190,7 @@ files: src/lib/media/upload-client.ts, src/lib/components/MediaUploader.svelte, 
 do: `upload-client.ts`: `uploadFiles(files, ownerFields, onProgress)` via XMLHttpRequest multipart to `/api/media` (one request per file, sequential), resolves JSON or rejects with server French message; 401 → `location.href = '/login?redirectTo=...'`. MediaUploader: `<input type=file multiple accept="image/*,video/mp4,video/quicktime,video/webm">`, per-file progress bars, error list, `onuploaded` callback (then `invalidateAll()`). MediaGallery: grid of thumbs (`loading="lazy"`, `/media/<id>/thumb`), photo opens full image in `<dialog>`, video → `<video controls preload="metadata" poster=...>` of `/media/<id>/original` (generic video icon when no poster), per-item ConfirmButton delete → `DELETE /api/media/<id>`.
 exit: `npm run check` and `npm run lint` clean; behavior verified by T29 e2e (FR-21, FR-22, NFR-2).
 
-### T29: Entry detail page with media and journal links  [doing]  (lite: no)
+### T29: Entry detail page with media and journal links  [done]  (lite: no)
 deps: T7, T14, T27, T28
 files: src/routes/entries/[id]/+page.svelte, src/routes/entries/[id]/+page.server.ts, e2e/entry-detail.spec.ts, e2e/media.spec.ts
 do: Load: getEntry (404 if missing/deleted), rendered markdown, formatted fuzzy dates (EC-1 "en cours"), tags, location, creator/modifier names + dates, visible media, `listJournalDaysForEntry` links to `/journal/<day>`. Actions: `delete` → softDeleteEntry → redirect `/` ; Edit link. Includes MediaGallery + MediaUploader (ownerKind entry). `important` styled accent.
@@ -214,7 +214,7 @@ files: src/lib/timeline/scale.ts, src/lib/timeline/scale.test.ts, src/lib/compon
 do: (NOTE from B4: key `{#each}` by `item.key` — `id` is shared by all occurrences of a series.) `scale.ts`: `makeScale(minDay, maxDay, pxPerDay)` → `x(day)`, `ticks(zoom: 'year'|'month')`; zoom levels continuous between year (≈1 px/day) and month (≈8 px/day) with clamp. Component props `items`, `today`: horizontally scrollable frise; tracks top→bottom: phase bands (own greedy lane calc `phaseLanes()` in scale.ts, independent of T31), main track markers (items in sort order, fuzzy items placed at firstDay with width to lastDay), separate grey Histoire track; zoom via wheel (ctrl/plain wheel with preventDefault) and +/− buttons (44px); initial scroll to today; markers link to `/entries/<id>` or occurrence page; render only markers within viewport ± buffer.
 exit: `npx vitest run src/lib/timeline/scale.test.ts` passes (x monotonic, tick labels in French); `npm run check` clean (FR-10).
 
-### T33: Home timeline page (filters, view toggle, empty state)  [doing]  (lite: no)
+### T33: Home timeline page (filters, view toggle, empty state)  [done]  (lite: no)
 deps: T24, T27, T31, T32
 files: src/routes/+page.svelte, src/routes/+page.server.ts, src/lib/timeline/prefs.ts, src/lib/components/timeline/TypeFilters.svelte, src/lib/components/timeline/ViewToggle.svelte, e2e/timeline.spec.ts
 do: Load `getTimeline(db, {types from ?types= (default all 5), today: todayIn(tz)})`. TypeFilters: 5 toggle chips updating URL `?types=` (goto, keepFocus). ViewToggle vertical/horizontal; `prefs.ts` stores choice in localStorage `timeline.view`; default by `matchMedia('(min-width: 1024px)')`. Empty state when no non-histoire items: "Votre timeline est vide" + CTA button "Ajouter un souvenir" → /entries/new (EC-14). "Ajouter" FAB always visible. Link "Ce jour-là" at top (FR-20 access from home).
@@ -232,7 +232,7 @@ files: src/routes/journal/calendrier/+page.svelte, src/routes/journal/calendrier
 do: Month grid (`?mois=YYYY-MM`, default current month in TZ) with prev/next month; each day cell links to `/journal/<day>` and shows author initials/colored dots per author from `listCalendar`; below 768px render as list of days having entries. Page has a "Journal du jour" link to /journal; the Journal nav tab stays pointed at /journal (T34 files untouched).
 exit: `npm run test:e2e -- e2e/journal-calendar.spec.ts` passes: after alice writes today, today's cell shows alice's marker and not bob's (FR-19).
 
-### T36: Search page  [doing]  (lite: no)
+### T36: Search page  [done]  (lite: no)
 deps: T15, T27, T34
 files: src/routes/recherche/+page.svelte, src/routes/recherche/+page.server.ts, e2e/search.spec.ts
 do: GET form `?q=`; load runs `search(db, q)`; results list with kind badge (Entrée/Journal), title or day+author, snippet (text only, escaped), link to url. Empty message "Aucun résultat pour « q »".

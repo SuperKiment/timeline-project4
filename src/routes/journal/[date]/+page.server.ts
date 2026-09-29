@@ -93,7 +93,7 @@ export const actions: Actions = {
 		const userId = locals.user.id;
 		const db = getDb();
 		try {
-			softDeleteOwnDay(db, userId, params.date, getConfig().tz);
+			softDeleteOwnDay(db, userId, params.date);
 			return { deleted: true };
 		} catch (err) {
 			if (err instanceof HttpError) return fail(err.status, { message: err.message });

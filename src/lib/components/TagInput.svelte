@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { dedupeTags, mergeTags } from '../timeline/entry-form';
+	import { mergeTags } from '../timeline/entry-form';
 
 	let {
 		name = 'tags',
@@ -13,7 +13,7 @@
 		label?: string;
 	} = $props();
 
-	let tags = $state<string[]>(untrack(() => dedupeTags(initialTags)));
+	let tags = $state<string[]>(untrack(() => mergeTags(initialTags, '')));
 	let draft = $state('');
 
 	// A tag typed but not yet committed (no Enter/comma) is still submitted through

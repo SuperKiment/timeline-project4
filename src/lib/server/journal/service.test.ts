@@ -179,7 +179,7 @@ describe('softDeleteOwnDay', () => {
 		upsertOwnEntry(db, alice, '2026-06-10', { text: 'A' }, TZ, NOW);
 		upsertOwnEntry(db, bob, '2026-06-10', { text: 'B' }, TZ, NOW);
 
-		softDeleteOwnDay(db, alice, '2026-06-10', TZ, NOW);
+		softDeleteOwnDay(db, alice, '2026-06-10', NOW);
 
 		const entries = getDay(db, '2026-06-10', TZ, NOW).entries;
 		expect(entries.map((e) => e.userId)).toEqual([bob]);
@@ -191,7 +191,7 @@ describe('softDeleteOwnDay', () => {
 		const bob = insertUser(db, 'bob', 'Bob');
 		upsertOwnEntry(db, bob, '2026-06-10', { text: 'B' }, TZ, NOW);
 
-		expect(() => softDeleteOwnDay(db, alice, '2026-06-10', TZ, NOW)).toThrow(
+		expect(() => softDeleteOwnDay(db, alice, '2026-06-10', NOW)).toThrow(
 			expect.objectContaining({ status: 404, message: 'Entrée de journal introuvable.' })
 		);
 		expect(getDay(db, '2026-06-10', TZ, NOW).entries).toHaveLength(1);
@@ -200,7 +200,7 @@ describe('softDeleteOwnDay', () => {
 	it('throws 400 for an invalid day', () => {
 		const db = createTestDb();
 		const alice = insertUser(db, 'alice', 'Alice');
-		expect(() => softDeleteOwnDay(db, alice, '2026-02-30', TZ, NOW)).toThrow(
+		expect(() => softDeleteOwnDay(db, alice, '2026-02-30', NOW)).toThrow(
 			expect.objectContaining({ status: 400 })
 		);
 	});

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	clearAllDrafts,
 	clearDraft,
 	draftKey,
 	isDraftNewer,
@@ -37,8 +38,8 @@ describe('isDraftNewer', () => {
 describe('save/load/clear', () => {
 	it('restores a newer draft', () => {
 		const s = memoryStorage();
-		saveDraft(s, 1, 'd', 'brouillon', '🙂', 200);
-		expect(loadDraft(s, 1, 'd', { text: 'x', mood: null, updatedAt: 100 })).toEqual({
+		saveDraft(() => s, 1, 'd', 'brouillon', '🙂', 200);
+		expect(loadDraft(() => s, 1, 'd', { text: 'x', mood: null, updatedAt: 100 })).toEqual({
 			text: 'brouillon',
 			mood: '🙂',
 			savedAt: 200
@@ -47,23 +48,23 @@ describe('save/load/clear', () => {
 
 	it('drops an older draft', () => {
 		const s = memoryStorage();
-		saveDraft(s, 1, 'd', 'vieux', null, 50);
-		expect(loadDraft(s, 1, 'd', { text: 'x', mood: null, updatedAt: 100 })).toBeNull();
+		saveDraft(() => s, 1, 'd', 'vieux', null, 50);
+		expect(loadDraft(() => s, 1, 'd', { text: 'x', mood: null, updatedAt: 100 })).toBeNull();
 		expect(s.data.size).toBe(0);
 	});
 
 	it('drops a draft identical to the server copy', () => {
 		const s = memoryStorage();
-		saveDraft(s, 1, 'd', 'x', null, 200);
-		expect(loadDraft(s, 1, 'd', { text: 'x', mood: null, updatedAt: 100 })).toBeNull();
+		saveDraft(() => s, 1, 'd', 'x', null, 200);
+		expect(loadDraft(() => s, 1, 'd', { text: 'x', mood: null, updatedAt: 100 })).toBeNull();
 	});
 
 	it('ignores corrupt data and clears', () => {
 		const s = memoryStorage();
 		s.setItem(draftKey(1, 'd'), '{nope');
-		expect(loadDraft(s, 1, 'd', null)).toBeNull();
-		saveDraft(s, 1, 'd', 'a', null, 1);
-		clearDraft(s, 1, 'd');
+		expect(loadDraft(() => s, 1, 'd', null)).toBeNull();
+		saveDraft(() => s, 1, 'd', 'a', null, 1);
+		clearDraft(() => s, 1, 'd');
 		expect(s.data.size).toBe(0);
 	});
 
@@ -75,6 +76,25 @@ describe('save/load/clear', () => {
 			},
 			removeItem: () => {}
 		};
-		expect(() => saveDraft(s, 1, 'd', 'a', null)).not.toThrow();
+		expect(() => saveDraft(() => s, 1, 'd', 'a', null)).not.toThrow();
+	});
+
+	describe('when the storage accessor throws (blocked storage)', () => {
+		const blocked = () => {
+			throw new DOMException('denied', 'SecurityError');
+		};
+
+		it('saveDraft is a no-op', () => {
+			expect(() => saveDraft(blocked, 1, 'd', 'a', null)).not.toThrow();
+		});
+		it('loadDraft returns null', () => {
+			expect(loadDraft(blocked, 1, 'd', null)).toBeNull();
+		});
+		it('clearDraft is a no-op', () => {
+			expect(() => clearDraft(blocked, 1, 'd')).not.toThrow();
+		});
+		it('clearAllDrafts is a no-op', () => {
+			expect(() => clearAllDrafts(blocked)).not.toThrow();
+		});
 	});
 });

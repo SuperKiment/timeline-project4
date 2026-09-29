@@ -6,7 +6,7 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	// Visiting /login means there is no session: drop drafts left by a previous user.
-	onMount(() => clearAllDrafts(localStorage));
+	onMount(() => clearAllDrafts(() => localStorage));
 </script>
 
 <svelte:head>

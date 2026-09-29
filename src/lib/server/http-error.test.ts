@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HttpError, parseIdParam, rethrowAsKitError } from './http-error';
+import { HttpError, parseIdParam, parseIdParamOr404, rethrowAsKitError } from './http-error';
 
 describe('parseIdParam', () => {
 	it('parses positive integers', () => {
@@ -16,6 +16,24 @@ describe('parseIdParam', () => {
 			} catch (err) {
 				expect((err as HttpError).status).toBe(400);
 				expect((err as HttpError).message).toBe('Identifiant invalide.');
+			}
+		}
+	);
+});
+
+describe('parseIdParamOr404', () => {
+	it('parses positive integers', () => {
+		expect(parseIdParamOr404('7')).toBe(7);
+	});
+
+	it.each([undefined, '', '0', '-1', 'abc', '99999999999999999999'])(
+		'turns %j into a SvelteKit 404',
+		(raw) => {
+			try {
+				parseIdParamOr404(raw);
+				expect.unreachable();
+			} catch (err) {
+				expect(err).toMatchObject({ status: 404, body: { message: 'Entrée introuvable.' } });
 			}
 		}
 	);

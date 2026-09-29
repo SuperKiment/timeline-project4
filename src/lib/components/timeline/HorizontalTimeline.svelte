@@ -104,6 +104,8 @@
 	});
 </script>
 
+<!-- eslint-disable svelte/no-navigation-without-resolve -- every href comes from itemHref(), which already resolve()s -->
+
 <div class="horizontal-timeline">
 	<div class="zoom-controls">
 		<button type="button" aria-label="Dézoomer" onclick={() => zoomBy(1 / BUTTON_ZOOM_FACTOR)}>
@@ -133,7 +135,6 @@
 			<div class="track phase-track" style="height: {phaseLaneCount * LANE_HEIGHT}px;">
 				{#each visiblePhases as laned (laned.item.key)}
 					{@const [from, to] = itemRange(laned.item, today)}
-					<!-- eslint-disable svelte/no-navigation-without-resolve -- target routes (/entries/[id], /entries/[id]/occurrences/[date]) are added by T29/T30, not yet present for resolve() to type-check -->
 					<a
 						class="phase-band"
 						href={itemHref(laned.item)}
@@ -145,14 +146,12 @@
 					>
 						<span class="phase-title">{laned.item.title}</span>
 					</a>
-					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				{/each}
 			</div>
 
 			<div class="track main-track">
 				{#each visibleMain as item (item.key)}
 					{@const [from, to] = itemRange(item, today)}
-					<!-- eslint-disable svelte/no-navigation-without-resolve -- target routes (/entries/[id], /entries/[id]/occurrences/[date]) are added by T29/T30, not yet present for resolve() to type-check -->
 					<a
 						class="marker"
 						class:important={item.type === 'important'}
@@ -163,14 +162,12 @@
 						<span class="marker-dot"></span>
 						<span class="marker-title">{item.title}</span>
 					</a>
-					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				{/each}
 			</div>
 
 			<div class="track histoire-track">
 				{#each visibleHistoire as item (item.key)}
 					{@const [from, to] = itemRange(item, today)}
-					<!-- eslint-disable svelte/no-navigation-without-resolve -- target routes (/entries/[id], /entries/[id]/occurrences/[date]) are added by T29/T30, not yet present for resolve() to type-check -->
 					<a
 						class="marker histoire"
 						href={itemHref(item)}
@@ -180,7 +177,6 @@
 						<span class="marker-dot"></span>
 						<span class="marker-title">{item.title}</span>
 					</a>
-					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				{/each}
 			</div>
 		</div>

@@ -1,8 +1,9 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { createTestDb } from '../db/test-db';
 import type { Db } from '../db';
 import { entries, media, occurrenceNotes } from '../db/schema';
-import { getTimeline } from './query';
+import { getTimeline, hasUserContent, isOngoing } from './query';
 import type { EntryType } from '../../timeline/types';
 
 const now = Date.now();
@@ -300,5 +301,76 @@ describe('getTimeline', () => {
 
 		expect(result.length).toBeGreaterThan(2000);
 		expect(elapsed).toBeLessThan(300);
+	});
+});
+
+function insertSeeded(db: Db): void {
+	const id = insertEntry(db, { type: 'histoire' });
+	db.update(entries)
+		.set({ seedKey: `seed-${id}` })
+		.where(eq(entries.id, id))
+		.run();
+}
+
+describe('hasUserContent (EC-14)', () => {
+	it('is false on an empty database', () => {
+		expect(hasUserContent(createTestDb())).toBe(false);
+	});
+
+	it('is false when only seeded entries exist', () => {
+		const db = createTestDb();
+		insertSeeded(db);
+		expect(hasUserContent(db)).toBe(false);
+	});
+
+	it('is true for a user-created histoire entry', () => {
+		const db = createTestDb();
+		insertEntry(db, { type: 'histoire' });
+		expect(hasUserContent(db)).toBe(true);
+	});
+
+	it('is false when the only user entry is soft-deleted', () => {
+		const db = createTestDb();
+		insertSeeded(db);
+		insertEntry(db, { type: 'souvenir', deletedAt: now });
+		expect(hasUserContent(db)).toBe(false);
+	});
+
+	it('is true with a live souvenir', () => {
+		const db = createTestDb();
+		insertEntry(db, { type: 'histoire' });
+		insertEntry(db, { type: 'souvenir' });
+		expect(hasUserContent(db)).toBe(true);
+	});
+});
+
+describe('isOngoing', () => {
+	it('is true for open phase and histoire', () => {
+		expect(isOngoing('phase', null)).toBe(true);
+		expect(isOngoing('histoire', null)).toBe(true);
+	});
+
+	it('is false when an end date is set', () => {
+		expect(isOngoing('phase', '2020-06-01')).toBe(false);
+		expect(isOngoing('histoire', '2020-00-00')).toBe(false);
+	});
+
+	it('is false for other types even without an end date', () => {
+		expect(isOngoing('souvenir', null)).toBe(false);
+		expect(isOngoing('important', null)).toBe(false);
+		expect(isOngoing('recurrent', null)).toBe(false);
+	});
+});
+
+describe('getTimeline types subset', () => {
+	it('returns only the requested subset of several types', () => {
+		const db = createTestDb();
+		insertEntry(db, { type: 'souvenir', title: 's' });
+		insertEntry(db, { type: 'important', title: 'i' });
+		insertEntry(db, { type: 'phase', title: 'p' });
+
+		const result = getTimeline(db, { types: ['souvenir', 'phase'], today: '2025-01-01' });
+
+		expect(result.map((item) => item.title).sort()).toEqual(['p', 's']);
 	});
 });

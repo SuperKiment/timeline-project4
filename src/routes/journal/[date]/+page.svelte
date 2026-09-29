@@ -6,6 +6,7 @@
 	import ConfirmButton from '$lib/components/ConfirmButton.svelte';
 	import MediaGallery from '$lib/components/MediaGallery.svelte';
 	import MediaUploader from '$lib/components/MediaUploader.svelte';
+	import { formatDayFr } from '$lib/dates/format';
 	import { clearDraft, loadDraft, saveDraft } from '$lib/journal/draft';
 	import { MOODS, MOOD_LABELS } from '$lib/journal/moods';
 	import type { ActionData, PageData } from './$types';
@@ -41,7 +42,7 @@
 	function restoreDraft() {
 		if (data.isFuture) return;
 		const draft = loadDraft(
-			localStorage,
+			() => localStorage,
 			data.userId,
 			data.day,
 			data.own && { text: data.own.text, mood: data.own.mood, updatedAt: data.own.updatedAt }
@@ -61,15 +62,10 @@
 	});
 
 	function persistDraft() {
-		saveDraft(localStorage, data.userId, data.day, text, mood);
+		saveDraft(() => localStorage, data.userId, data.day, text, mood);
 	}
 
-	const dayLabel = $derived(
-		new Intl.DateTimeFormat('fr-FR', {
-			dateStyle: 'full',
-			timeZone: 'UTC'
-		}).format(new Date(`${data.day}T00:00:00Z`))
-	);
+	const dayLabel = $derived(formatDayFr(data.day, 'full'));
 
 	function jump(event: Event & { currentTarget: HTMLInputElement }) {
 		const value = event.currentTarget.value;
@@ -124,7 +120,7 @@
 							saving = false;
 							const unchanged = text === snapshot.text && mood === snapshot.mood;
 							if (result.type === 'success' && unchanged) {
-								clearDraft(localStorage, data.userId, data.day);
+								clearDraft(() => localStorage, data.userId, data.day);
 								restored = false;
 							}
 							await update({ reset: false });

@@ -1,6 +1,6 @@
 /**
  * Journal draft autosave (EC-13). Pure logic + an injectable storage so it
- * is testable in node; components pass `localStorage`.
+ * is testable in node; components pass `() => localStorage`.
  */
 
 export interface DraftStorage {
@@ -8,6 +8,13 @@ export interface DraftStorage {
 	setItem(key: string, value: string): void;
 	removeItem(key: string): void;
 }
+
+/**
+ * Lazy storage accessor. Reading `window.localStorage` itself can throw
+ * (SecurityError when storage is blocked), so it is resolved inside the
+ * try/catch of each function below; callers pass `() => localStorage`.
+ */
+export type DraftStorageAccessor = () => DraftStorage;
 
 export interface Draft {
 	text: string;
@@ -42,7 +49,7 @@ function parseDraft(raw: string | null): Draft | null {
 
 /** Stores the draft; storage failures (quota, private mode) are swallowed. */
 export function saveDraft(
-	storage: DraftStorage,
+	getStorage: DraftStorageAccessor,
 	userId: number,
 	day: string,
 	text: string,
@@ -51,7 +58,7 @@ export function saveDraft(
 ): void {
 	try {
 		const draft: Draft = { text, mood, savedAt: now };
-		storage.setItem(draftKey(userId, day), JSON.stringify(draft));
+		getStorage().setItem(draftKey(userId, day), JSON.stringify(draft));
 	} catch {
 		// Autosave is best-effort.
 	}
@@ -62,13 +69,14 @@ export function saveDraft(
  * differs from it; otherwise `null` (a stale draft is removed).
  */
 export function loadDraft(
-	storage: DraftStorage,
+	getStorage: DraftStorageAccessor,
 	userId: number,
 	day: string,
 	server: { text: string; mood: string | null; updatedAt: number } | null
 ): Draft | null {
 	const key = draftKey(userId, day);
 	try {
+		const storage = getStorage();
 		const draft = parseDraft(storage.getItem(key));
 		if (!draft) return null;
 		if (
@@ -85,9 +93,9 @@ export function loadDraft(
 }
 
 /** Removes the draft (after a successful save or delete). */
-export function clearDraft(storage: DraftStorage, userId: number, day: string): void {
+export function clearDraft(getStorage: DraftStorageAccessor, userId: number, day: string): void {
 	try {
-		storage.removeItem(draftKey(userId, day));
+		getStorage().removeItem(draftKey(userId, day));
 	} catch {
 		// ignore
 	}
@@ -101,9 +109,13 @@ export type EnumerableDraftStorage = DraftStorage & {
 	key(index: number): string | null;
 };
 
+/** Lazy accessor for an enumerable storage (see {@link DraftStorageAccessor}). */
+export type EnumerableDraftStorageAccessor = () => EnumerableDraftStorage;
+
 /** Removes every journal draft (e.g. after logout on a shared device); errors are swallowed. */
-export function clearAllDrafts(storage: EnumerableDraftStorage): void {
+export function clearAllDrafts(getStorage: EnumerableDraftStorageAccessor): void {
 	try {
+		const storage = getStorage();
 		const keys: string[] = [];
 		for (let i = 0; i < storage.length; i++) {
 			const key = storage.key(i);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatStamp, yearsAgoLabel } from './format';
+import { formatDayFr, formatStamp, yearsAgoLabel } from './format';
 
 describe('yearsAgoLabel', () => {
 	it('uses the singular for one year', () => {
@@ -15,5 +15,17 @@ describe('formatStamp', () => {
 	it('formats in French in the given timezone', () => {
 		const ms = Date.UTC(2026, 4, 3, 12, 30);
 		expect(formatStamp(ms, 'Europe/Paris')).toMatch(/^3 mai 2026 à 14:30$/);
+	});
+});
+
+describe('formatDayFr', () => {
+	it('defaults to the long style', () => {
+		expect(formatDayFr('2026-05-03')).toBe('3 mai 2026');
+	});
+	it('supports the full style, with the weekday', () => {
+		expect(formatDayFr('2026-05-03', 'full')).toBe('dimanche 3 mai 2026');
+	});
+	it('is timezone independent (UTC day)', () => {
+		expect(formatDayFr('2026-01-01')).toBe('1 janvier 2026');
 	});
 });

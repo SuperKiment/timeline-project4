@@ -8,6 +8,7 @@ import {
 	firstDay,
 	formatDayMonthFr,
 	formatFr,
+	formatPeriodFr,
 	fromSortKey,
 	isPeriodValid,
 	isValidFuzzy,
@@ -254,5 +255,30 @@ describe('diffDays', () => {
 	it('is consistent across a leap-day and a year boundary', () => {
 		expect(diffDays('2024-02-28', '2024-03-01')).toBe(2);
 		expect(diffDays('2024-12-31', '2025-01-01')).toBe(1);
+	});
+});
+
+describe('formatPeriodFr', () => {
+	const start = { year: 2018, month: 3, precision: 'month' } as const;
+
+	it('shows only the start without end', () => {
+		expect(formatPeriodFr(start, null)).toBe('mars 2018');
+	});
+
+	it('shows "en cours" for an ongoing open period (EC-1)', () => {
+		expect(formatPeriodFr(start, null, true)).toBe('mars 2018 – en cours');
+	});
+
+	it('shows start – end, collapsing identical bounds', () => {
+		expect(formatPeriodFr(start, { year: 2020, precision: 'year' })).toBe('mars 2018 – 2020');
+		expect(formatPeriodFr(start, start)).toBe('mars 2018');
+	});
+
+	it('shows the end when ongoing is set but an end exists (end wins, no "en cours")', () => {
+		expect(formatPeriodFr(start, { year: 2020, precision: 'year' }, true)).toBe('mars 2018 – 2020');
+	});
+
+	it('does not validate ordering: a start after the end is rendered as given', () => {
+		expect(formatPeriodFr({ year: 2022, precision: 'year' }, start)).toBe('2022 – mars 2018');
 	});
 });

@@ -5,7 +5,7 @@
 	let { item }: { item: TimelineItem } = $props();
 </script>
 
-<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- target routes (/entries/[id], /entries/[id]/occurrences/[date]) are added by T29/T30, not yet present for resolve() to type-check -->
+<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- itemHref() already returns a resolve()d path -->
 <a class="card" class:important={item.type === 'important'} href={itemHref(item)}>
 	{#if item.thumbUrl}
 		<img

@@ -11,3 +11,10 @@ export function formatStamp(ms: number, tz: string): string {
 		timeStyle: 'short'
 	}).format(new Date(ms));
 }
+
+/** French label for an ISO day ("YYYY-MM-DD"), e.g. "3 mai 2026" (long) or "dimanche 3 mai 2026" (full). */
+export function formatDayFr(day: string, dateStyle: 'long' | 'full' = 'long'): string {
+	return new Intl.DateTimeFormat('fr-FR', { dateStyle, timeZone: 'UTC' }).format(
+		new Date(`${day}T00:00:00Z`)
+	);
+}
