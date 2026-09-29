@@ -56,3 +56,10 @@ select {
 	font-family: inherit;
 	font-size: 1rem;
 }
+
+/* Inline anchors ignore min-height; keep link-buttons at the 44px touch target. */
+a.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}

@@ -37,13 +37,13 @@ export default defineConfig({
 		{
 			name: 'desktop',
 			dependencies: ['fresh', 'setup'],
-			testIgnore: /(timeline-empty|media)\.spec\.ts/,
+			testIgnore: /(timeline-empty|media|responsive)\.spec\.ts/,
 			use: { ...devices['Desktop Chrome'] }
 		},
 		{
 			name: 'mobile',
 			dependencies: ['fresh', 'setup'],
-			testMatch: /(media|nav)\.spec\.ts/,
+			testMatch: /(media|nav|responsive)\.spec\.ts/,
 			use: { ...devices['Pixel 7'] }
 		}
 	]
