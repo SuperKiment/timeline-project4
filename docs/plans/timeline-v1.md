@@ -196,7 +196,7 @@ files: src/routes/entries/[id]/+page.svelte, src/routes/entries/[id]/+page.serve
 do: Load: getEntry (404 if missing/deleted), rendered markdown, formatted fuzzy dates (EC-1 "en cours"), tags, location, creator/modifier names + dates, visible media, `listJournalDaysForEntry` links to `/journal/<day>`. Actions: `delete` → softDeleteEntry → redirect `/` ; Edit link. Includes MediaGallery + MediaUploader (ownerKind entry). `important` styled accent.
 exit: `npm run test:e2e -- e2e/entry-detail.spec.ts e2e/media.spec.ts` passes: markdown `<script>` not executed on page (AC-16); mobile project uploads photo-exif-rotated.jpg + photo.heic + video.mp4 via setInputFiles → 3 thumbs/poster shown, `request.get('/media/<id>/original', {headers:{Range:'bytes=0-99'}})` → 206; delete moves entry out of detail (FR-13, AC-7, FR-24).
 
-### T30: Recurrent series occurrences UI  [todo]  (lite: no)
+### T30: Recurrent series occurrences UI  [done]  (lite: no)
 deps: T11, T29
 files: src/lib/components/SeriesOccurrences.svelte, src/routes/entries/[id]/+page.svelte, src/routes/entries/[id]/+page.server.ts, src/routes/entries/[id]/occurrences/[date]/+page.svelte, src/routes/entries/[id]/occurrences/[date]/+page.server.ts, e2e/recurrent.spec.ts
 do: (NOTE from B4 fixes: `upsertOccurrenceNote(db, seriesId, date, note, userId, now, today)` / `ensureOccurrenceNote(db, seriesId, date, userId, now, today)` take explicit `today` (todayIn(tz)); they throw `HttpError` 404 (series) / 400 (date) — map via `error(e.status, e.message)`. `orphans` items are `{ id, date, note }`.) On detail of a `recurrent` entry, load `listSeriesOccurrences` and render SeriesOccurrences: list (newest first) with date, note excerpt, media count, link to occurrence page; "Notes orphelines" section for orphans (EC-6). Occurrence page: 404 if date not a valid occurrence; note textarea (upsertOccurrenceNote action), MediaGallery + MediaUploader with ownerKind occurrence (seriesId+date).
@@ -244,7 +244,7 @@ files: src/routes/ce-jour-la/+page.svelte, src/routes/ce-jour-la/+page.server.ts
 do: Load `onThisDay(db, todayIn(tz))`; heading "Ce jour-là — <JJ mois>"; sections per year ("Il y a N ans — YYYY") with items linking to entry / occurrence page / journal day. Empty message "Rien ne s'est passé un <JJ mois> les années précédentes… pour l'instant."
 exit: `npm run test:e2e -- e2e/ce-jour-la.spec.ts` passes: souvenir created via UI with today's DD/MM two years ago appears under that year; page 200 with empty message on fresh data is covered by unit T16 (FR-20, AC-10).
 
-### T38: Trash page  [todo]  (lite: no)
+### T38: Trash page  [done]  (lite: no)
 deps: T21, T29, T33
 files: src/routes/corbeille/+page.svelte, src/routes/corbeille/+page.server.ts, e2e/trash.spec.ts
 do: List `listTrash` items (type label, title, deleted date, "suppression définitive le <date>"); actions `restore` and `purge` (ConfirmButton "Supprimer définitivement ?"); journal items of the other user shown without actions. Empty state "La corbeille est vide".
@@ -269,12 +269,13 @@ exit: `npm install && npm run build && npm run check && npm run lint && npm test
 - F3 (B3 media): no explicit test for >50 MP HEIC rejection (no HEIC encoder available to build fixture) — add one via synthetic fixture or metadata stub.
 - F4 (B3 bug W, do with T19): `src/lib/server/media/images.ts` `isDecodeError` maps libvips WRITE failures (ENOSPC comes back without `err.code`, message "No space left on device") to `MediaError('Image illisible.')` → T19 cannot return 507 (EC-12). Fix: decode source first (`clone().toBuffer()`/`metadata()`) inside the MediaError mapping, write files outside it; or detect `/No space left on device/`.
 - F5 (B4 test W): `src/lib/server/timeline/query.test.ts` NFR-2 perf test uses a real wall-clock <300ms budget — widen margin or gate separately if it flakes on the Pi/CI.
-- F6 (B4 design W): `src/lib/server/entries/occurrences.ts` `ensureOccurrenceNote` near-duplicates `upsertOccurrenceNote` — merge into one fn with optional `note` (omitted = leave note untouched); update T19/T30 callers accordingly.
+- [done] F6 (B4 design W): `src/lib/server/entries/occurrences.ts` `ensureOccurrenceNote` near-duplicates `upsertOccurrenceNote` — merge into one fn with optional `note` (omitted = leave note untouched); update T19/T30 callers accordingly.
 - F7 (B4 bug N): `src/lib/server/entries/service.ts` journal-link 366-day cap keeps the oldest days of a long open phase — consider keeping the most recent 366 instead.
 - F8 (B5 T31/T32, B6 T24): `src/lib/components/timeline/TimelineCard.svelte` + `HorizontalTimeline.svelte` + `src/lib/components/AppNav.svelte` (5 nav links) + `src/routes/journal/calendrier/+page.svelte` + `src/routes/ce-jour-la/+page.svelte` (B7) use `eslint-disable-next-line svelte/no-navigation-without-resolve` for `/entries/...` links because T29/T30 routes did not exist yet — switch to `resolve()` and drop the disable once they land (do with T29/T30).
 - F9 (T39 finding): nothing loads `.env` — `node build`, `tsx scripts/*` and `vite dev` (config.ts reads `process.env`) all ignore it; DEPLOY-RPI documents `set -a; . ./.env` + systemd `EnvironmentFile` as workaround. Fix: `node --env-file-if-exists=.env` (Node ≥22.9; real env wins) in `start` and tsx scripts, and `loadEnv` → `process.env` in vite.config.ts for dev; then simplify README/DEPLOY-RPI.
-- F10 (B5 bug W, do with T30/F6): `src/lib/server/media/upload.ts` `resolveOwner` for `ownerKind=occurrence` calls `ensureOccurrenceNote` (inserts or un-soft-deletes the note row) BEFORE files are processed → a later 413/415/507 leaves an empty note row / resurrects a deleted note. Fix: resolve occurrence ownership read-only first, create/restore the note inside the success path (same transaction as media rows).
+- [done] F10 (B5 bug W, do with T30/F6): `src/lib/server/media/upload.ts` `resolveOwner` for `ownerKind=occurrence` calls `ensureOccurrenceNote` (inserts or un-soft-deletes the note row) BEFORE files are processed → a later 413/415/507 leaves an empty note row / resurrects a deleted note. Fix: resolve occurrence ownership read-only first, create/restore the note inside the success path (same transaction as media rows).
 
 ## OPEN (decisions needing the user — plan is blocked on these)
 
 (none — defaults chosen in Conventions: TZ Europe/Paris, argon2 via @node-rs/argon2, Caddy `tls internal` recommended for LAN HTTPS, mood emoji list in T14, 18 Histoire landmarks in T12; override any before starting if desired)
+- F11 (B9 bug W): orphan occurrence notes show `mediaCount` but their media has no gallery/link (occurrence page 404s once the date is no longer an occurrence) — render MediaGallery inline for orphans in `SeriesOccurrences.svelte`.

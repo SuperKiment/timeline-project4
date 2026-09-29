@@ -554,7 +554,7 @@ describe('handleUpload', () => {
 		expect(row).toBeTruthy();
 	});
 
-	it('propagates ensureOccurrenceNote HttpError status (404 for an unknown series)', async () => {
+	it('propagates assertOccurrence HttpError status (404 for an unknown series)', async () => {
 		const userId = insertUser(db, 'a');
 		const data = await fs.readFile(path.join(FIXTURES, 'photo-exif-rotated.jpg'));
 
@@ -571,6 +571,95 @@ describe('handleUpload', () => {
 		expect(response.status).toBe(404);
 		expect(db.select().from(media).all()).toEqual([]);
 		expect(await tmpDirEntries()).toEqual([]);
+	});
+
+	it('leaves no note row when an upload to an occurrence is rejected (415)', async () => {
+		const userId = insertUser(db, 'a');
+		const seriesId = insertSeries(db, '2020-06-15');
+		const data = await fs.readFile(path.join(FIXTURES, 'fake.jpg'));
+
+		const response = await handleUpload(
+			db,
+			buildUploadRequest(
+				{ ownerKind: 'occurrence', seriesId: String(seriesId), date: TODAY },
+				{ filename: 'fake.jpg', contentType: 'image/jpeg', data }
+			),
+			{ id: userId },
+			NOW
+		);
+
+		expect(response.status).toBe(415);
+		expect(db.select().from(occurrenceNotes).all()).toEqual([]);
+		expect(db.select().from(media).all()).toEqual([]);
+	});
+
+	it('keeps a soft-deleted occurrence note deleted when the upload is rejected', async () => {
+		const userId = insertUser(db, 'a');
+		const seriesId = insertSeries(db, '2020-06-15');
+		db.insert(occurrenceNotes)
+			.values({
+				seriesId,
+				occurrenceDate: TODAY,
+				note: 'ancienne',
+				createdBy: userId,
+				createdAt: NOW,
+				updatedBy: userId,
+				updatedAt: NOW,
+				deletedAt: NOW
+			})
+			.run();
+		const data = await fs.readFile(path.join(FIXTURES, 'fake.jpg'));
+
+		const response = await handleUpload(
+			db,
+			buildUploadRequest(
+				{ ownerKind: 'occurrence', seriesId: String(seriesId), date: TODAY },
+				{ filename: 'fake.jpg', contentType: 'image/jpeg', data }
+			),
+			{ id: userId },
+			NOW + 1000
+		);
+
+		expect(response.status).toBe(415);
+		const note = db.select().from(occurrenceNotes).get();
+		expect(note?.deletedAt).toBe(NOW);
+		expect(note?.updatedAt).toBe(NOW);
+	});
+
+	it('restores a soft-deleted occurrence note (text kept) on a successful upload', async () => {
+		const userId = insertUser(db, 'a');
+		const seriesId = insertSeries(db, '2020-06-15');
+		db.insert(occurrenceNotes)
+			.values({
+				seriesId,
+				occurrenceDate: TODAY,
+				note: 'ancienne',
+				createdBy: userId,
+				createdAt: NOW,
+				updatedBy: userId,
+				updatedAt: NOW,
+				deletedAt: NOW
+			})
+			.run();
+		const data = await fs.readFile(path.join(FIXTURES, 'photo-exif-rotated.jpg'));
+
+		const response = await handleUpload(
+			db,
+			buildUploadRequest(
+				{ ownerKind: 'occurrence', seriesId: String(seriesId), date: TODAY },
+				{ filename: 'vacances.jpg', contentType: 'image/jpeg', data }
+			),
+			{ id: userId },
+			NOW
+		);
+
+		expect(response.status).toBe(200);
+		const note = db.select().from(occurrenceNotes).get();
+		expect(note?.deletedAt).toBeNull();
+		expect(note?.note).toBe('ancienne');
+		expect(db.select().from(media).where(eq(media.occurrenceNoteId, note!.id)).all()).toHaveLength(
+			1
+		);
 	});
 
 	it('moves a video into mediaDir and best-effort generates a poster (T18)', async () => {

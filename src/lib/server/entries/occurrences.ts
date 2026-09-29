@@ -3,6 +3,7 @@ import { occurrenceOn, occurrences, type Frequency } from '../../dates/recurrenc
 import type { Db } from '../db';
 import { entries, media, occurrenceNotes } from '../db/schema';
 import { HttpError } from '../http-error';
+import { assertValidDay, MAX_TEXT_LENGTH } from '../journal/service';
 
 export interface SeriesOccurrence {
 	date: string;
@@ -15,6 +16,7 @@ export interface OrphanOccurrenceNote {
 	id: number;
 	date: string;
 	note: string | null;
+	mediaCount: number;
 }
 
 export interface SeriesOccurrencesResult {
@@ -41,6 +43,7 @@ function getSeriesOrThrow(db: Db, seriesId: number): SeriesRow {
 
 /** Rejects dates that are not an occurrence of `series`, or that lie in the future. */
 function assertValidOccurrenceDate(series: SeriesRow, date: string, today: string): void {
+	assertValidDay(date);
 	const freq = series.recurrenceFreq as Frequency;
 
 	if (!occurrenceOn(series.startSort, freq, date, series.endSort)) {
@@ -108,32 +111,88 @@ export function listSeriesOccurrences(
 
 	const orphans: OrphanOccurrenceNote[] = notes
 		.filter((n) => !validDates.has(n.occurrenceDate))
-		.map((n) => ({ id: n.id, date: n.occurrenceDate, note: n.note }));
+		.map((n) => ({
+			id: n.id,
+			date: n.occurrenceDate,
+			note: n.note,
+			mediaCount: countMedia(db, n.id)
+		}));
 
 	return { occurrences: occurrenceList, orphans };
 }
 
 /**
- * Creates or updates the note attached to a series occurrence. Rejects a
- * `date` that is not a valid occurrence of the series or that lies in the
- * future. Returns the note id.
+ * Read-only check that `date` is a valid (past or present) occurrence of a
+ * visible recurrent series. Throws `HttpError` 404 (unknown/deleted series) or
+ * 400 (malformed date, not an occurrence, or in the future); writes nothing.
+ * Returns the series row.
+ */
+export function assertOccurrence(db: Db, seriesId: number, date: string, today: string): SeriesRow {
+	const series = getSeriesOrThrow(db, seriesId);
+	assertValidOccurrenceDate(series, date, today);
+	return series;
+}
+
+export interface OccurrenceDetail {
+	seriesTitle: string;
+	noteId: number | null;
+	note: string | null;
+}
+
+/** Validated occurrence (see `assertOccurrence`) with its live note, if any. */
+export function getOccurrence(
+	db: Db,
+	seriesId: number,
+	date: string,
+	today: string
+): OccurrenceDetail {
+	const series = assertOccurrence(db, seriesId, date, today);
+	const row = db
+		.select({ id: occurrenceNotes.id, note: occurrenceNotes.note })
+		.from(occurrenceNotes)
+		.where(
+			and(
+				eq(occurrenceNotes.seriesId, seriesId),
+				eq(occurrenceNotes.occurrenceDate, date),
+				isNull(occurrenceNotes.deletedAt)
+			)
+		)
+		.get();
+	return { seriesTitle: series.title, noteId: row?.id ?? null, note: row?.note ?? null };
+}
+
+/**
+ * Creates the note attached to a series occurrence, or restores it if it was
+ * soft-deleted. When `note` is given (string or null) it replaces the note
+ * text; when omitted the existing text is left untouched (a new row gets
+ * `null`, a live row is not written at all). Same validation as
+ * `assertOccurrence`, plus a 400 when the text exceeds `MAX_TEXT_LENGTH`.
+ * Returns the note id.
  */
 export function upsertOccurrenceNote(
 	db: Db,
 	seriesId: number,
 	date: string,
-	note: string | null,
+	note: string | null | undefined,
 	userId: number,
 	now: number,
 	today: string
 ): number {
-	const series = getSeriesOrThrow(db, seriesId);
-	assertValidOccurrenceDate(series, date, today);
+	assertOccurrence(db, seriesId, date, today);
+	if (note != null && note.length > MAX_TEXT_LENGTH) {
+		throw new HttpError(400, 'Note trop longue (50 000 caractères max).');
+	}
 
 	const existing = findNote(db, seriesId, date);
 	if (existing !== null) {
+		if (note === undefined && existing.deletedAt === null) return existing.id;
 		db.update(occurrenceNotes)
-			.set({ note, updatedBy: userId, updatedAt: now, deletedAt: null })
+			.set({
+				...(note !== undefined ? { note } : {}),
+				updatedBy: userId,
+				updatedAt: now,
+				deletedAt: null
+			})
 			.where(eq(occurrenceNotes.id, existing.id))
 			.run();
 		return existing.id;
@@ -144,51 +203,7 @@ export function upsertOccurrenceNote(
 		.values({
 			seriesId,
 			occurrenceDate: date,
-			note,
-			createdBy: userId,
-			createdAt: now,
-			updatedBy: userId,
-			updatedAt: now
-		})
-		.returning({ id: occurrenceNotes.id })
-		.get();
-	return inserted.id;
-}
-
-/**
- * Returns the id of the note for a series occurrence, creating an empty one
- * (note: null) if none exists yet. Used by media upload so a photo/video can
- * always be attached to an occurrence note. Same validation as
- * `upsertOccurrenceNote`.
- */
-export function ensureOccurrenceNote(
-	db: Db,
-	seriesId: number,
-	date: string,
-	userId: number,
-	now: number,
-	today: string
-): number {
-	const series = getSeriesOrThrow(db, seriesId);
-	assertValidOccurrenceDate(series, date, today);
-
-	const existing = findNote(db, seriesId, date);
-	if (existing !== null) {
-		if (existing.deletedAt !== null) {
-			db.update(occurrenceNotes)
-				.set({ updatedBy: userId, updatedAt: now, deletedAt: null })
-				.where(eq(occurrenceNotes.id, existing.id))
-				.run();
-		}
-		return existing.id;
-	}
-
-	const inserted = db
-		.insert(occurrenceNotes)
-		.values({
-			seriesId,
-			occurrenceDate: date,
-			note: null,
+			note: note ?? null,
 			createdBy: userId,
 			createdAt: now,
 			updatedBy: userId,

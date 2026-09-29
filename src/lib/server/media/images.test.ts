@@ -59,6 +59,13 @@ describe('sniffAndValidate', () => {
 		).rejects.toThrow(MediaError);
 	});
 
+	it('rejects an inherited-property extension like x.constructor as unsupported', async () => {
+		const { sniffAndValidate } = await import('./validate');
+		await expect(
+			sniffAndValidate(path.join(FIXTURES, 'photo-exif-rotated.jpg'), 'x.constructor')
+		).rejects.toMatchObject({ status: 415 });
+	});
+
 	it('accepts a real HEIC file named with a heic extension', async () => {
 		const { sniffAndValidate } = await import('./validate');
 		const result = await sniffAndValidate(path.join(FIXTURES, 'photo.heic'), 'IMG_0001.heic');

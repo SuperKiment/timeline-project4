@@ -200,9 +200,15 @@ export function formatItemDateRange(item: TimelineItem): string {
 
 /** Resolved detail page URL for a timeline item: entry page, or occurrence page for `occurrence` items. */
 export function itemHref(item: TimelineItem): string {
-	if (item.kind === 'occurrence') {
-		// TODO(T30): replace the cast with a typed resolve() once the occurrence route exists.
-		return resolve(`/entries/${item.seriesId}/occurrences/${item.occurrenceDate}` as '/');
+	if (
+		item.kind === 'occurrence' &&
+		item.seriesId !== undefined &&
+		item.occurrenceDate !== undefined
+	) {
+		return resolve('/entries/[id]/occurrences/[date]', {
+			id: String(item.seriesId),
+			date: item.occurrenceDate
+		});
 	}
 	return resolve('/entries/[id]', { id: String(item.id) });
 }

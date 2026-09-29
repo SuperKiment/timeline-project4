@@ -9,7 +9,7 @@ import { isFutureDay } from '../time';
 const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Validates `day` as a real calendar date `YYYY-MM-DD`. Throws 400 otherwise. */
-function assertValidDay(day: string): void {
+export function assertValidDay(day: string): void {
 	if (!ISO_DAY_RE.test(day) || !isValidFuzzy({ ...parseIsoDay(day), precision: 'day' })) {
 		throw new HttpError(400, 'Date invalide.');
 	}

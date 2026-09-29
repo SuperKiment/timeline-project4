@@ -4,7 +4,13 @@ import type { Db } from '../db';
 import { createTestDb } from '../db/test-db';
 import { entries, media, occurrenceNotes, users } from '../db/schema';
 import { HttpError } from '../http-error';
-import { ensureOccurrenceNote, listSeriesOccurrences, upsertOccurrenceNote } from './occurrences';
+import {
+	assertOccurrence,
+	getOccurrence,
+	listSeriesOccurrences,
+	upsertOccurrenceNote
+} from './occurrences';
+import { MAX_TEXT_LENGTH } from '../journal/service';
 
 // 2024-06-15 12:00 UTC is 2024-06-15 in Europe/Paris (default TZ), used as "now"
 // throughout so occurrence dates on/after that day count as future.
@@ -108,7 +114,8 @@ describe('occurrences service', () => {
 		expect(orphans[0]).toEqual({
 			id: noteId,
 			date: '2022-06-15',
-			note: 'Ne pas perdre'
+			note: 'Ne pas perdre',
+			mediaCount: 0
 		});
 	});
 
@@ -191,12 +198,20 @@ describe('occurrences service', () => {
 		expect(revived?.noteId).toBe(noteId);
 	});
 
-	it('ensureOccurrenceNote on a soft-deleted note revives it', () => {
+	it('upsertOccurrenceNote without a note on a soft-deleted note revives it', () => {
 		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
-		const noteId = ensureOccurrenceNote(db, seriesId, '2021-06-15', userId, NOW, TODAY);
+		const noteId = upsertOccurrenceNote(db, seriesId, '2021-06-15', undefined, userId, NOW, TODAY);
 		db.update(occurrenceNotes).set({ deletedAt: NOW }).where(eq(occurrenceNotes.id, noteId)).run();
 
-		const revivedId = ensureOccurrenceNote(db, seriesId, '2021-06-15', userId, NOW, TODAY);
+		const revivedId = upsertOccurrenceNote(
+			db,
+			seriesId,
+			'2021-06-15',
+			undefined,
+			userId,
+			NOW,
+			TODAY
+		);
 		expect(revivedId).toBe(noteId);
 
 		const { occurrences } = listSeriesOccurrences(db, seriesId, TODAY);
@@ -204,11 +219,11 @@ describe('occurrences service', () => {
 		expect(revived?.noteId).toBe(noteId);
 	});
 
-	it('ensureOccurrenceNote creates an empty note once and is idempotent', () => {
+	it('upsertOccurrenceNote without a note creates an empty note once and is idempotent', () => {
 		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
 
-		const id1 = ensureOccurrenceNote(db, seriesId, '2021-06-15', userId, NOW, TODAY);
-		const id2 = ensureOccurrenceNote(db, seriesId, '2021-06-15', userId, NOW, TODAY);
+		const id1 = upsertOccurrenceNote(db, seriesId, '2021-06-15', undefined, userId, NOW, TODAY);
+		const id2 = upsertOccurrenceNote(db, seriesId, '2021-06-15', undefined, userId, NOW, TODAY);
 
 		expect(id1).toBe(id2);
 
@@ -218,9 +233,39 @@ describe('occurrences service', () => {
 		expect(created?.note).toBeNull();
 	});
 
+	it('upsertOccurrenceNote without a note keeps the existing text', () => {
+		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
+		const noteId = upsertOccurrenceNote(
+			db,
+			seriesId,
+			'2021-06-15',
+			'garde-moi',
+			userId,
+			NOW,
+			TODAY
+		);
+		db.update(occurrenceNotes).set({ deletedAt: NOW }).where(eq(occurrenceNotes.id, noteId)).run();
+
+		upsertOccurrenceNote(db, seriesId, '2021-06-15', undefined, userId, NOW, TODAY);
+
+		const row = db.select().from(occurrenceNotes).where(eq(occurrenceNotes.id, noteId)).get();
+		expect(row?.note).toBe('garde-moi');
+		expect(row?.deletedAt).toBeNull();
+	});
+
+	it('assertOccurrence validates read-only and writes nothing', () => {
+		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
+
+		expect(() => assertOccurrence(db, seriesId, '2021-06-15', TODAY)).not.toThrow();
+		expect(() => assertOccurrence(db, seriesId, '2021-06-16', TODAY)).toThrow(HttpError);
+		expect(() => assertOccurrence(db, seriesId, '2025-06-15', TODAY)).toThrow(HttpError);
+		expect(() => assertOccurrence(db, 999999, '2021-06-15', TODAY)).toThrow(HttpError);
+		expect(db.select().from(occurrenceNotes).all()).toEqual([]);
+	});
+
 	it('counts only visible media attached to an occurrence note', () => {
 		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
-		const noteId = ensureOccurrenceNote(db, seriesId, '2021-06-15', userId, NOW, TODAY);
+		const noteId = upsertOccurrenceNote(db, seriesId, '2021-06-15', undefined, userId, NOW, TODAY);
 
 		db.insert(media)
 			.values({
@@ -265,5 +310,66 @@ describe('occurrences service', () => {
 
 		const { orphans } = listSeriesOccurrences(db, seriesId, TODAY);
 		expect(orphans).toEqual([]);
+	});
+
+	it.each(['2026-01-5', '2024-06-15 ', '2024-02-30'])('rejects malformed date %j', (date) => {
+		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
+		expect(() => assertOccurrence(db, seriesId, date, TODAY)).toThrow(HttpError);
+		expect(() => upsertOccurrenceNote(db, seriesId, date, 'x', userId, NOW, TODAY)).toThrow(
+			HttpError
+		);
+		expect(db.select().from(occurrenceNotes).all()).toEqual([]);
+	});
+
+	it('getOccurrence returns the series title and the live note if any', () => {
+		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly', title: 'Ciné' });
+		expect(getOccurrence(db, seriesId, '2022-06-15', TODAY)).toEqual({
+			seriesTitle: 'Ciné',
+			noteId: null,
+			note: null
+		});
+		const noteId = upsertOccurrenceNote(db, seriesId, '2022-06-15', 'hello', userId, NOW, TODAY);
+		expect(getOccurrence(db, seriesId, '2022-06-15', TODAY)).toEqual({
+			seriesTitle: 'Ciné',
+			noteId,
+			note: 'hello'
+		});
+	});
+
+	it('does not rewrite a live note when note is undefined', () => {
+		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
+		const id = upsertOccurrenceNote(db, seriesId, '2022-06-15', 'x', userId, NOW, TODAY);
+		const before = db.select().from(occurrenceNotes).where(eq(occurrenceNotes.id, id)).get();
+		const otherUser = insertUser(db);
+		upsertOccurrenceNote(db, seriesId, '2022-06-15', undefined, otherUser, NOW + 1000, TODAY);
+		const after = db.select().from(occurrenceNotes).where(eq(occurrenceNotes.id, id)).get();
+		expect(after).toEqual(before);
+	});
+
+	it('rejects a note over the length cap', () => {
+		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
+		const long = 'a'.repeat(MAX_TEXT_LENGTH + 1);
+		expect(() =>
+			upsertOccurrenceNote(db, seriesId, '2022-06-15', long, userId, NOW, TODAY)
+		).toThrow(HttpError);
+	});
+
+	it('reports media count on orphan notes', () => {
+		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
+		const noteId = upsertOccurrenceNote(db, seriesId, '2022-06-15', 'x', userId, NOW, TODAY);
+		db.insert(media)
+			.values({
+				occurrenceNoteId: noteId,
+				kind: 'photo',
+				mime: 'image/jpeg',
+				storedName: 'o.jpg',
+				size: 10,
+				originalName: 'o.jpg',
+				createdBy: userId,
+				createdAt: NOW
+			})
+			.run();
+		db.update(entries).set({ startSort: '2020-07-01' }).where(eq(entries.id, seriesId)).run();
+		expect(listSeriesOccurrences(db, seriesId, TODAY).orphans[0].mediaCount).toBe(1);
 	});
 });

@@ -58,7 +58,7 @@ export interface SniffResult {
  */
 export async function sniffAndValidate(filePath: string, clientName: string): Promise<SniffResult> {
 	const rawExt = path.extname(clientName).slice(1).toLowerCase();
-	const allowed = ALLOWED[rawExt];
+	const allowed = Object.hasOwn(ALLOWED, rawExt) ? ALLOWED[rawExt] : undefined;
 	if (!allowed) {
 		throw new MediaError('Type de fichier non supporté.');
 	}

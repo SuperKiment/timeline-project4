@@ -5,6 +5,7 @@ import { getConfig } from '$lib/server/config';
 import { getDb } from '$lib/server/db';
 import { getEntry, listJournalDaysForEntry, softDeleteEntry } from '$lib/server/entries/service';
 import { getEntryMeta } from '$lib/server/entries/meta';
+import { listSeriesOccurrences } from '$lib/server/entries/occurrences';
 import { parseIdParamOr404 } from '$lib/server/http-error';
 import { renderMarkdown } from '$lib/server/markdown';
 import { listMediaByOwner } from '$lib/server/media/query';
@@ -23,6 +24,11 @@ export const load: PageServerLoad = ({ locals, params }) => {
 	if (!entry) error(404, 'Entrée introuvable.');
 
 	const tz = getConfig().tz;
+	const today = todayIn(tz);
+	const series =
+		entry.type === 'recurrent' && entry.recurrenceFreq
+			? listSeriesOccurrences(db, entry.id, today)
+			: null;
 	const ongoing = isOngoing(entry.type as EntryType, entry.endSort);
 
 	return {
@@ -38,7 +44,8 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		tags: parseTagsJson(entry.tags),
 		descriptionHtml: entry.description ? renderMarkdown(entry.description) : '',
 		media: listMediaByOwner(db, 'entry', [entry.id]).get(entry.id) ?? [],
-		journalDays: listJournalDaysForEntry(db, entry, todayIn(tz)),
+		journalDays: listJournalDaysForEntry(db, entry, today),
+		series,
 		meta: getEntryMeta(db, entry, tz)
 	};
 };

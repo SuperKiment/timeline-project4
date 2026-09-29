@@ -10,7 +10,7 @@ import { json } from '@sveltejs/kit';
 import { getConfig } from '../config';
 import type { Db } from '../db';
 import { entries, journalEntries, media } from '../db/schema';
-import { ensureOccurrenceNote } from '../entries/occurrences';
+import { assertOccurrence, upsertOccurrenceNote } from '../entries/occurrences';
 import { HttpError } from '../http-error';
 import { todayIn } from '../time';
 import { processPhoto } from './images';
@@ -24,7 +24,6 @@ import {
 } from './storage';
 import { MAX_BYTES as DEFAULT_MAX_BYTES, MediaError, sniffAndValidate } from './validate';
 import { makePoster } from './video';
-import type { MediaItem } from '$lib/media/types';
 
 /** Minimal shape of the authenticated user needed to process an upload. */
 export interface UploadUser {
@@ -74,7 +73,7 @@ function isEnospc(err: unknown): boolean {
 /**
  * Maps a failure from owner resolution or file processing to the matching
  * HTTP response: `HttpError` statuses are propagated as-is (e.g. 404/400 from
- * `ensureOccurrenceNote`), `MediaError` uses its own status (415, or 413 for oversized photos), a disk-full error
+ * `assertOccurrence`), `MediaError` uses its own status (415, or 413 for oversized photos), a disk-full error
  * becomes 507 (EC-12, F4), anything else is a generic 500.
  */
 function errorFromException(err: unknown): Response {
@@ -205,9 +204,14 @@ function parseMultipart(
 	});
 }
 
+/**
+ * The validated owner of an upload. For an occurrence the note row does not
+ * exist yet (or may be soft-deleted): it is created/restored only when the
+ * media rows are committed, so a rejected upload leaves it untouched.
+ */
 interface ResolvedOwner {
 	entryId: number | null;
-	occurrenceNoteId: number | null;
+	occurrence: { seriesId: number; date: string } | null;
 	journalEntryId: number | null;
 }
 
@@ -229,7 +233,6 @@ function resolveOwner(
 	db: Db,
 	fields: Record<string, string>,
 	user: UploadUser,
-	now: number,
 	today: string
 ): ResolvedOwner {
 	const ownerKind = fields.ownerKind;
@@ -244,7 +247,7 @@ function resolveOwner(
 		if (!entry || entry.deletedAt !== null) {
 			throw new HttpError(404, 'Entrée introuvable.');
 		}
-		return { entryId, occurrenceNoteId: null, journalEntryId: null };
+		return { entryId, occurrence: null, journalEntryId: null };
 	}
 
 	if (ownerKind === 'occurrence') {
@@ -253,8 +256,8 @@ function resolveOwner(
 		if (!date) {
 			throw new HttpError(400, 'Date invalide.');
 		}
-		const occurrenceNoteId = ensureOccurrenceNote(db, seriesId, date, user.id, now, today);
-		return { entryId: null, occurrenceNoteId, journalEntryId: null };
+		assertOccurrence(db, seriesId, date, today);
+		return { entryId: null, occurrence: { seriesId, date }, journalEntryId: null };
 	}
 
 	if (ownerKind === 'journal') {
@@ -273,36 +276,71 @@ function resolveOwner(
 				"Vous ne pouvez ajouter de médias qu'à vos propres entrées de journal."
 			);
 		}
-		return { entryId: null, occurrenceNoteId: null, journalEntryId };
+		return { entryId: null, occurrence: null, journalEntryId };
 	}
 
 	throw new HttpError(400, 'Type de propriétaire invalide.');
 }
 
-/** Inserts a media row inside its own transaction. */
-function insertMediaRow(db: Db, values: typeof media.$inferInsert): typeof media.$inferSelect {
-	return db.transaction((tx) => tx.insert(media).values(values).returning().get());
-}
+/** A media row ready to insert; its owner columns are filled in at commit time. */
+type PendingMediaRow = Omit<
+	typeof media.$inferInsert,
+	'entryId' | 'occurrenceNoteId' | 'journalEntryId'
+>;
 
 interface ProcessedFile {
-	item: MediaItem;
+	row: PendingMediaRow;
 	files: StoredMediaFiles;
+}
+
+/**
+ * Inserts all media rows of a batch in ONE transaction. For an occurrence
+ * owner the note row is created/restored (text untouched) in that same
+ * transaction, so a failure rolls both back.
+ */
+function commitMediaRows(
+	db: Db,
+	rows: PendingMediaRow[],
+	owner: ResolvedOwner,
+	userId: number,
+	now: number,
+	today: string
+): (typeof media.$inferSelect)[] {
+	return db.transaction((tx) => {
+		const occurrenceNoteId = owner.occurrence
+			? upsertOccurrenceNote(
+					tx,
+					owner.occurrence.seriesId,
+					owner.occurrence.date,
+					undefined,
+					userId,
+					now,
+					today
+				)
+			: null;
+		return rows.map((row) =>
+			tx
+				.insert(media)
+				.values({
+					...row,
+					entryId: owner.entryId,
+					occurrenceNoteId,
+					journalEntryId: owner.journalEntryId
+				})
+				.returning()
+				.get()
+		);
+	});
 }
 
 /**
  * Validates, converts/moves and stores a single uploaded file (photo via
  * T17's `processPhoto`, video via a plain move + optional poster via T18's
- * `makePoster`), then inserts its `media` row. Throws `MediaError` (415) on
+ * `makePoster`), returning the `media` row to insert (see `commitMediaRows`). Throws `MediaError` (415) on
  * an invalid/undecodable file, or lets filesystem errors (e.g. `ENOSPC`,
  * EC-12) propagate unchanged.
  */
-async function processFile(
-	db: Db,
-	file: ParsedFile,
-	owner: ResolvedOwner,
-	userId: number,
-	now: number
-): Promise<ProcessedFile> {
+async function processFile(file: ParsedFile, userId: number, now: number): Promise<ProcessedFile> {
 	const sniff = await sniffAndValidate(file.tmpPath, file.filename);
 
 	if (sniff.kind === 'photo') {
@@ -311,12 +349,9 @@ async function processFile(
 		// no longer needed once the original/thumb have been written.
 		await fsp.unlink(file.tmpPath).catch(() => {});
 
-		// EC-9: files are on disk but not yet in `produced`, so clean them up here.
+		// EC-9: files are on disk but not yet returned to the caller, so clean them up here on failure.
 		try {
-			const row = insertMediaRow(db, {
-				entryId: owner.entryId,
-				occurrenceNoteId: owner.occurrenceNoteId,
-				journalEntryId: owner.journalEntryId,
+			const row: PendingMediaRow = {
 				kind: 'photo',
 				mime: processed.mime,
 				storedName: processed.storedName,
@@ -328,10 +363,10 @@ async function processFile(
 				originalName: file.filename,
 				createdBy: userId,
 				createdAt: now
-			});
+			};
 
 			return {
-				item: toMediaItem(row),
+				row,
 				files: { storedName: processed.storedName, thumbName: processed.thumbName }
 			};
 		} catch (err) {
@@ -351,7 +386,7 @@ async function processFile(
 	await fsp.rename(file.tmpPath, destPath);
 
 	const posterName = newStoredName('jpg');
-	// EC-9: files are on disk but not yet in `produced`, so clean them up here.
+	// EC-9: files are on disk but not yet returned to the caller, so clean them up here on failure.
 	try {
 		const size = (await fsp.stat(destPath)).size;
 		const posterOk = await makePoster(destPath, mediaPath(posterName));
@@ -359,10 +394,7 @@ async function processFile(
 		// orphan file is left behind (EC-9).
 		if (!posterOk) await fsp.unlink(mediaPath(posterName)).catch(() => {});
 
-		const row = insertMediaRow(db, {
-			entryId: owner.entryId,
-			occurrenceNoteId: owner.occurrenceNoteId,
-			journalEntryId: owner.journalEntryId,
+		const row: PendingMediaRow = {
 			kind: 'video',
 			mime: sniff.mime,
 			storedName,
@@ -374,10 +406,10 @@ async function processFile(
 			originalName: file.filename,
 			createdBy: userId,
 			createdAt: now
-		});
+		};
 
 		return {
-			item: toMediaItem(row),
+			row,
 			files: { storedName, posterName: posterOk ? posterName : null }
 		};
 	} catch (err) {
@@ -442,35 +474,35 @@ export async function handleUpload(
 
 	let owner: ResolvedOwner;
 	try {
-		owner = resolveOwner(db, fields, user, now, today);
+		owner = resolveOwner(db, fields, user, today);
 	} catch (err) {
 		await cleanupTmp(files);
 		return errorFromException(err);
 	}
 
-	const uploaded: MediaItem[] = [];
-	const produced: { id: number; files: StoredMediaFiles }[] = [];
+	const processed: ProcessedFile[] = [];
 
 	try {
 		for (const file of files) {
-			const { item, files: storedFiles } = await processFile(db, file, owner, user.id, now);
-			uploaded.push(item);
-			produced.push({ id: item.id, files: storedFiles });
+			processed.push(await processFile(file, user.id, now));
 		}
+		// One transaction for every row (and the occurrence note): all-or-nothing.
+		const rows = commitMediaRows(
+			db,
+			processed.map((p) => p.row),
+			owner,
+			user.id,
+			now,
+			today
+		);
+		return json(rows.map(toMediaItem));
 	} catch (err) {
-		for (const row of produced) {
-			try {
-				db.delete(media).where(eq(media.id, row.id)).run();
-			} catch {
-				// best-effort rollback: keep going
-			}
-			await removeMediaFiles(row.files).catch(() => {});
+		for (const { files: storedFiles } of processed) {
+			await removeMediaFiles(storedFiles).catch(() => {});
 		}
 		await cleanupTmp(files);
 		return errorFromException(err);
 	}
-
-	return json(uploaded);
 }
 
 /**

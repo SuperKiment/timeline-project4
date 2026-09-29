@@ -4,6 +4,7 @@
 	import MediaGallery from '$lib/components/MediaGallery.svelte';
 	import MediaUploader from '$lib/components/MediaUploader.svelte';
 	import { formatDayFr } from '$lib/dates/format';
+	import SeriesOccurrences from '$lib/components/SeriesOccurrences.svelte';
 	import type { EntryType } from '$lib/timeline/types';
 	import type { PageData } from './$types';
 
@@ -46,7 +47,13 @@
 			<div class="description">{@html data.descriptionHtml}</div>
 		{/if}
 
-		<!-- T30: SeriesOccurrences slot for `recurrent` entries goes here. -->
+		{#if data.series}
+			<SeriesOccurrences
+				seriesId={data.id}
+				occurrences={data.series.occurrences}
+				orphans={data.series.orphans}
+			/>
+		{/if}
 
 		<section aria-label="Médias">
 			<h2>Médias</h2>
