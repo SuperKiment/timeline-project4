@@ -1,21 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { ALICE, login } from './helpers';
+import { ALICE_STATE, createEntry, uniqueTitle } from './helpers';
 
 const FIXTURES = ['photo-exif-rotated.jpg', 'photo.heic', 'video.mp4'].map(
 	(name) => `tests/fixtures/${name}`
 );
 
-test('uploads photos and a video on an entry, serves ranges, deletes the entry (FR-24)', async ({
-	page
-}, testInfo) => {
-	test.skip(testInfo.project.name !== 'mobile', 'media upload runs on the mobile project only');
+test.use({ storageState: ALICE_STATE });
 
-	await login(page, ALICE);
-	await page.goto('/entries/new?date=2024-05-01');
-	await page.getByLabel('Titre').fill(`Médias ${testInfo.project.name} ${Date.now()}`);
-	await page.getByRole('button', { name: 'Créer' }).click();
-	await expect(page).toHaveURL(/\/entries\/\d+$/);
-	const detailPath = new URL(page.url()).pathname;
+test('uploads photos and a video on an entry and serves ranges (FR-24)', async ({ page }) => {
+	await createEntry(page, { title: uniqueTitle('Médias') });
 
 	await page.locator('input[type="file"]').setInputFiles(FIXTURES);
 
@@ -44,10 +37,4 @@ test('uploads photos and a video on an entry, serves ranges, deletes the entry (
 	});
 	expect(ranged.status()).toBe(206);
 	expect((await ranged.body()).length).toBe(100);
-
-	// Deleting the entry moves it out of the detail page.
-	await page.locator('form.actions').getByRole('button', { name: 'Supprimer' }).click();
-	await page.getByRole('button', { name: 'Confirmer' }).click();
-	await expect(page).toHaveURL('/');
-	expect((await page.goto(detailPath))?.status()).toBe(404);
 });

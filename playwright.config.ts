@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
 	testDir: 'e2e',
 	testMatch: '**/*.spec.ts',
+	workers: process.env.CI ? 2 : 4,
 	use: {
 		baseURL: 'http://localhost:4173'
 	},
@@ -19,24 +20,30 @@ export default defineConfig({
 		reuseExistingServer: !process.env.CI
 	},
 	projects: [
-		// "Fresh data" specs must run before anything else writes to the shared DB
-		// (desktop and mobile run in parallel on one database), so they get their own
-		// project that both other projects depend on.
+		// "Fresh data" specs must run before anything else writes to the shared DB,
+		// so they get their own project that everything else depends on.
 		{
 			name: 'fresh',
 			testMatch: /timeline-empty\.spec\.ts/,
 			use: { ...devices['Desktop Chrome'] }
 		},
+		// Logs alice and bob in once and saves their sessions to e2e/.auth/.
+		{
+			name: 'setup',
+			testMatch: /auth\.setup\.ts/,
+			dependencies: ['fresh'],
+			use: { ...devices['Desktop Chrome'] }
+		},
 		{
 			name: 'desktop',
-			dependencies: ['fresh'],
-			testIgnore: /timeline-empty\.spec\.ts/,
+			dependencies: ['fresh', 'setup'],
+			testIgnore: /(timeline-empty|media)\.spec\.ts/,
 			use: { ...devices['Desktop Chrome'] }
 		},
 		{
 			name: 'mobile',
-			dependencies: ['fresh'],
-			testIgnore: /timeline-empty\.spec\.ts/,
+			dependencies: ['fresh', 'setup'],
+			testMatch: /(media|nav)\.spec\.ts/,
 			use: { ...devices['Pixel 7'] }
 		}
 	]

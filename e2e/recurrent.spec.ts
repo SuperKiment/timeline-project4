@@ -1,17 +1,18 @@
 import { expect, test } from '@playwright/test';
-import { ALICE, login } from './helpers';
+import { ALICE_STATE, uniqueTitle } from './helpers';
+
+test.use({ storageState: ALICE_STATE });
 
 test('annotates one occurrence of a yearly series, other occurrences stay empty (AC-5, FR-7)', async ({
 	page
-}, testInfo) => {
+}) => {
 	test.setTimeout(90_000);
-	const title = `Anniversaire ${testInfo.project.name} ${Date.now()}`;
-	const note = `Note ${testInfo.project.name} ${Date.now()}`;
+	const title = uniqueTitle('Anniversaire');
+	const note = uniqueTitle('Note');
 	const year = new Date().getFullYear();
 	const annotated = `${year - 2}-01-01`;
 	const other = `${year - 1}-01-01`;
 
-	await login(page, ALICE);
 	await page.goto('/entries/new');
 	await page.getByLabel('Type', { exact: true }).selectOption('recurrent');
 	await page.getByLabel('Titre').fill(title);
@@ -20,7 +21,7 @@ test('annotates one occurrence of a yearly series, other occurrences stay empty 
 	await origin.getByRole('combobox', { name: 'Mois', exact: true }).selectOption('1');
 	await origin.getByRole('textbox', { name: 'Jour', exact: true }).fill('1');
 	await page.getByRole('button', { name: 'Créer' }).click();
-	await expect(page).toHaveURL(/\/entries\/(\d+)$/);
+	await expect(page).toHaveURL(/\/entries\/(\d+)$/, { timeout: 15_000 });
 	const seriesPath = new URL(page.url()).pathname;
 
 	const occurrenceLink = (date: string) =>

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ALICE, login } from './helpers';
+import { ALICE_STATE, fillDate, pastDay, uniqueTitle } from './helpers';
 
 type Precision = 'Jour' | 'Mois' | 'Année';
 
@@ -12,28 +12,9 @@ interface Item {
 	day?: string;
 }
 
-/** ISO day of `now` in the app timezone, shifted by `offsetDays`. */
-function isoDayOffset(offsetDays: number): string {
-	const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
-	const date = new Date(`${today}T00:00:00Z`);
-	date.setUTCDate(date.getUTCDate() + offsetDays);
-	return date.toISOString().slice(0, 10);
-}
-
-function dayParts(offsetDays: number) {
-	const [year, month, day] = isoDayOffset(offsetDays).split('-').map(Number);
+function dayParts(daysAgo: number) {
+	const [year, month, day] = pastDay(daysAgo).split('-').map(Number);
 	return { year: String(year), month: String(month), day: String(day) };
-}
-
-async function fillDate(page: Page, group: string, item: Omit<Item, 'type' | 'title'>) {
-	const fieldset = page.getByRole('group', { name: group, exact: true });
-	if (item.precision) {
-		await fieldset.getByRole('radio', { name: item.precision }).check({ force: true });
-	}
-	await fieldset.getByRole('textbox', { name: 'Année', exact: true }).fill(item.year);
-	if (item.month)
-		await fieldset.getByRole('combobox', { name: 'Mois', exact: true }).selectOption(item.month);
-	if (item.day) await fieldset.getByRole('textbox', { name: 'Jour', exact: true }).fill(item.day);
 }
 
 async function createItem(page: Page, item: Item) {
@@ -50,17 +31,18 @@ async function createItem(page: Page, item: Item) {
 	await expect(page).toHaveURL(/\/entries\/\d+$/);
 }
 
-// Serial: items are created once per project (beforeAll) and shared by the tests.
+// Serial: items are created once (beforeAll) and shared by the tests.
 // All dates are within ~100 days of today so they stay inside the horizontal
-// view's initial viewport (1 px/day) even at mobile width.
+// view's initial viewport (1 px/day).
 test.describe.configure({ mode: 'serial' });
+test.use({ storageState: ALICE_STATE });
 
 let prefix = '';
 let titles: Record<Item['type'], string>;
 
-test.beforeAll(async ({ browser }, testInfo) => {
+test.beforeAll(async ({ browser, baseURL }) => {
 	test.setTimeout(120_000);
-	prefix = `T33 ${testInfo.project.name} ${Date.now()}${Math.floor(Math.random() * 1000)}`;
+	prefix = uniqueTitle('T33');
 	titles = {
 		souvenir: `${prefix} souvenir`,
 		important: `${prefix} important`,
@@ -69,15 +51,14 @@ test.beforeAll(async ({ browser }, testInfo) => {
 		histoire: `${prefix} histoire`
 	};
 
-	const year = dayParts(-100).year;
-	const month = dayParts(-60);
-	const phase = dayParts(-40);
-	const recurrent = dayParts(-20);
-	const histoire = dayParts(-10);
+	const year = dayParts(100).year;
+	const month = dayParts(60);
+	const phase = dayParts(40);
+	const recurrent = dayParts(20);
+	const histoire = dayParts(10);
 
-	const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
+	const context = await browser.newContext({ storageState: ALICE_STATE, baseURL });
 	const page = await context.newPage();
-	await login(page, ALICE);
 	// Sort order: year < month < day keys (EC-3), oldest first.
 	await createItem(page, { type: 'souvenir', title: titles.souvenir, precision: 'Année', year });
 	await createItem(page, {
@@ -99,7 +80,6 @@ test.beforeAll(async ({ browser }, testInfo) => {
 });
 
 test.beforeEach(async ({ page }) => {
-	await login(page, ALICE);
 	await page.goto('/');
 });
 
@@ -116,7 +96,7 @@ async function horizontalTitles(page: Page): Promise<string[]> {
 	return labels.map((label) => label.split(' — ')[0]);
 }
 
-test('vertical view orders items by fuzzy date across precisions (AC-3, FR-9)', async ({
+test('vertical view orders items by fuzzy date across precisions (AC-3, FR-9, FR-20)', async ({
 	page
 }) => {
 	await page.getByRole('button', { name: 'Vertical', exact: true }).click();
@@ -129,10 +109,21 @@ test('vertical view orders items by fuzzy date across precisions (AC-3, FR-9)', 
 		titles.recurrent,
 		titles.histoire
 	]);
+
+	// Home links to "Ce jour-là" and the add button is always visible and tappable.
+	await expect(page.getByRole('link', { name: 'Ce jour-là', exact: true }).first()).toBeVisible();
+	const fab = page.getByRole('link', { name: 'Ajouter', exact: true });
+	await expect(fab).toBeVisible();
+	const box = await fab.boundingBox();
+	expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
-test('horizontal view lists phases, then main items, then histoire (FR-10)', async ({ page }) => {
-	await page.getByRole('button', { name: 'Horizontal', exact: true }).click();
+test('horizontal view lists phases, then main items, then histoire (FR-10, FR-9)', async ({
+	page
+}) => {
+	const horizontal = page.getByRole('button', { name: 'Horizontal', exact: true });
+	const vertical = page.getByRole('button', { name: 'Vertical', exact: true });
+	await horizontal.click();
 	await expect(page.locator(`a[aria-label*="${prefix}"]`)).toHaveCount(5);
 
 	// Track order in the DOM: phase lanes, main track (by date), histoire track.
@@ -143,6 +134,12 @@ test('horizontal view lists phases, then main items, then histoire (FR-10)', asy
 		titles.recurrent,
 		titles.histoire
 	]);
+
+	// The chosen view persists after reload.
+	await expect(horizontal).toHaveAttribute('aria-pressed', 'true');
+	await page.reload();
+	await expect(horizontal).toHaveAttribute('aria-pressed', 'true');
+	await expect(vertical).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('hiding the histoire filter removes histoire items (FR-11)', async ({ page }) => {
@@ -169,29 +166,4 @@ test('hiding the histoire filter removes histoire items (FR-11)', async ({ page 
 	);
 	await page.getByRole('button', { name: 'Histoire', exact: true }).click();
 	await expect(page.locator('a.card h3', { hasText: prefix })).toHaveCount(5);
-});
-
-test('view toggle choice persists after reload (FR-9)', async ({ page }) => {
-	const horizontal = page.getByRole('button', { name: 'Horizontal', exact: true });
-	const vertical = page.getByRole('button', { name: 'Vertical', exact: true });
-
-	await horizontal.click();
-	await expect(horizontal).toHaveAttribute('aria-pressed', 'true');
-	await page.reload();
-	await expect(horizontal).toHaveAttribute('aria-pressed', 'true');
-	await expect(vertical).toHaveAttribute('aria-pressed', 'false');
-
-	await vertical.click();
-	await page.reload();
-	await expect(vertical).toHaveAttribute('aria-pressed', 'true');
-});
-
-test('home links to "Ce jour-là" and offers an always-visible add button (FR-20)', async ({
-	page
-}) => {
-	await expect(page.getByRole('link', { name: 'Ce jour-là', exact: true }).first()).toBeVisible();
-	const fab = page.getByRole('link', { name: 'Ajouter', exact: true });
-	await expect(fab).toBeVisible();
-	const box = await fab.boundingBox();
-	expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 });

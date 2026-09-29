@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ALICE, login } from './helpers';
+import { ALICE_STATE } from './helpers';
 
 const LINKS = [
 	{ name: 'Timeline', path: '/' },
@@ -10,37 +10,36 @@ const LINKS = [
 	{ name: 'Paramètres', path: '/parametres' }
 ];
 
-test('no navigation on /login', async ({ page }) => {
-	await page.goto('/login');
-	await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toHaveCount(0);
-});
+test.use({ storageState: ALICE_STATE });
 
-test('all 6 nav links are visible after login', async ({ page }) => {
-	await login(page, ALICE);
+test('navigation: hidden on /login, links visible, tappable and working, no horizontal overflow (AC-13)', async ({
+	page,
+	browser,
+	baseURL
+}) => {
+	const anon = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+	const anonPage = await anon.newPage();
+	await anonPage.goto('/login');
+	await expect(anonPage.getByRole('navigation', { name: 'Navigation principale' })).toHaveCount(0);
+	await anon.close();
+
 	const nav = page.getByRole('navigation', { name: 'Navigation principale' });
-	await expect(nav).toBeVisible();
-	for (const { name } of LINKS) {
+	for (const { name, path } of LINKS) {
+		// Start away from the target so the URL change is observable.
+		await page.goto(path === '/parametres' ? '/' : '/parametres');
 		const link = nav.getByRole('link', { name, exact: true });
 		await expect(link).toBeVisible();
 		const box = await link.boundingBox();
 		expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+		await link.click();
+		// /journal redirects to today's day page.
+		await expect(page).toHaveURL((url) =>
+			path === '/journal'
+				? /^\/journal(\/\d{4}-\d{2}-\d{2})?$/.test(url.pathname)
+				: url.pathname === path
+		);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+			true
+		);
 	}
 });
-
-for (const { name, path } of LINKS) {
-	test(`nav link "${name}" navigates to ${path}`, async ({ page }) => {
-		await login(page, ALICE);
-		// Start away from the target so the URL change is observable (target may be 404 for now).
-		await page.goto(path === '/parametres' ? '/' : '/parametres');
-		await page
-			.getByRole('navigation', { name: 'Navigation principale' })
-			.getByRole('link', { name, exact: true })
-			.click();
-		// /journal redirects to today's day page.
-		const accepted =
-			path === '/journal'
-				? (url: URL) => /^\/journal(\/\d{4}-\d{2}-\d{2})?$/.test(url.pathname)
-				: (url: URL) => url.pathname === path;
-		await expect(page).toHaveURL(accepted);
-	});
-}

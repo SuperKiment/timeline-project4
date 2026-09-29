@@ -1,19 +1,7 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { ALICE, login } from './helpers';
+import { expect, test, type Page } from '@playwright/test';
+import { ALICE_STATE, createEntry, uniqueTitle } from './helpers';
 
-/** Unique per test and per project (desktop/mobile run in parallel on one DB). */
-function uniqueTitle(testInfo: TestInfo, label: string): string {
-	return `${label} ${testInfo.project.name} ${Date.now()}`;
-}
-
-/** Creates an entry through the form; returns its detail URL path. */
-async function createEntry(page: Page, title: string): Promise<string> {
-	await page.goto('/entries/new?date=2024-05-01');
-	await page.getByLabel('Titre').fill(title);
-	await page.getByRole('button', { name: 'Créer' }).click();
-	await expect(page).toHaveURL(/\/entries\/\d+$/);
-	return new URL(page.url()).pathname;
-}
+test.use({ storageState: ALICE_STATE });
 
 /** Deletes the entry shown on the current detail page through ConfirmButton. */
 async function deleteFromDetail(page: Page): Promise<void> {
@@ -22,19 +10,16 @@ async function deleteFromDetail(page: Page): Promise<void> {
 	await expect(page).toHaveURL('/');
 }
 
-test.beforeEach(async ({ page }) => {
-	await login(page, ALICE);
-});
-
 test('deleted entry leaves timeline and search, is listed in corbeille, and restores (FR-24, AC-8)', async ({
 	page
-}, testInfo) => {
-	const word = `Corbeille${testInfo.project.name}${Date.now()}`;
+}) => {
+	const word = `Corbeille${Date.now()}`;
 	const title = `${word} restaurable`;
-	await createEntry(page, title);
+	const path = await createEntry(page, { title });
 	await deleteFromDetail(page);
 
 	await expect(page.getByText(title)).toHaveCount(0);
+	expect((await page.goto(path))?.status()).toBe(404);
 
 	await page.goto(`/recherche?q=${word}`);
 	await expect(page.getByText(/Aucun résultat/)).toBeVisible();
@@ -52,11 +37,9 @@ test('deleted entry leaves timeline and search, is listed in corbeille, and rest
 	await expect(page.getByRole('link', { name: new RegExp(word) })).toBeVisible();
 });
 
-test('purge asks for confirmation and removes the item for good (EC-16)', async ({
-	page
-}, testInfo) => {
-	const title = uniqueTitle(testInfo, 'Purge');
-	const path = await createEntry(page, title);
+test('purge asks for confirmation and removes the item for good (EC-16)', async ({ page }) => {
+	const title = uniqueTitle('Purge');
+	const path = await createEntry(page, { title });
 	await deleteFromDetail(page);
 
 	await page.goto('/corbeille');

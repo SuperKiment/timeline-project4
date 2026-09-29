@@ -1,11 +1,10 @@
 import Database from 'better-sqlite3';
 import { expect, test } from '@playwright/test';
-import { ALICE, login } from './helpers';
+import { ALICE_STATE, parisToday } from './helpers';
 
 /**
  * Writes alice's journal entry for today straight into the e2e SQLite DB
  * (the journal write UI/API belongs to T34 and is not used here). Idempotent:
- * desktop and mobile projects run in parallel on the same DB, and
  * `INSERT OR IGNORE` hits the partial unique index (user_id, day) when the
  * entry already exists.
  *
@@ -30,11 +29,12 @@ function seedAliceToday(day: string): void {
 	}
 }
 
+test.use({ storageState: ALICE_STATE });
+
 test('today cell shows the author marker of alice and not bob (FR-19)', async ({ page }) => {
-	const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+	const today = parisToday();
 	seedAliceToday(today);
 
-	await login(page, ALICE);
 	await page.goto('/journal/calendrier');
 
 	const cell = page.locator(`[data-day="${today}"]`);
@@ -45,7 +45,6 @@ test('today cell shows the author marker of alice and not bob (FR-19)', async ({
 });
 
 test('invalid ?mois falls back to the current month and prev/next navigate', async ({ page }) => {
-	await login(page, ALICE);
 	const response = await page.goto('/journal/calendrier?mois=abc');
 	expect(response?.status()).toBe(200);
 	await expect(page.getByRole('heading', { level: 2 })).toBeVisible();
