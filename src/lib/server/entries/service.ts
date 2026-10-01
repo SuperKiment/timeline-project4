@@ -89,14 +89,14 @@ export function softDeleteEntry(db: Db, id: number, now: number): void {
 
 /**
  * Days within `entry`'s period (`[firstDay(start), lastDay(end) or today if
- * ongoing]`, capped to `MAX_JOURNAL_LINK_DAYS` days) that have visible
+ * ongoing]`, capped to its most recent `MAX_JOURNAL_LINK_DAYS` days) that have visible
  * journal entries, with the display names of their authors (FR-13).
  */
 export function listJournalDaysForEntry(db: Db, entry: EntryRow, today: string): JournalDayLink[] {
-	const from = firstDay(fromSortKey(entry.startSort));
-	let to = entry.endSort ? lastDay(fromSortKey(entry.endSort)) : today;
+	let from = firstDay(fromSortKey(entry.startSort));
+	const to = entry.endSort ? lastDay(fromSortKey(entry.endSort)) : today;
 	if (diffDays(from, to) + 1 > MAX_JOURNAL_LINK_DAYS) {
-		to = addDays(from, MAX_JOURNAL_LINK_DAYS - 1);
+		from = addDays(to, -(MAX_JOURNAL_LINK_DAYS - 1));
 	}
 
 	const rows = db

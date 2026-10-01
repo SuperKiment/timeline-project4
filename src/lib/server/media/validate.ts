@@ -13,8 +13,6 @@ export class MediaError extends Error {
 	}
 }
 
-export type { MediaKind };
-
 /** Maximum accepted upload size (500 MB), shared by upload/streaming code. */
 export const MAX_BYTES = 500 * 1024 * 1024;
 

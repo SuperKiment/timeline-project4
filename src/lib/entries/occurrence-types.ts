@@ -1,3 +1,5 @@
+import type { MediaItem } from '$lib/media/types';
+
 export interface SeriesOccurrence {
 	date: string;
 	note: string | null;
@@ -10,4 +12,5 @@ export interface OrphanOccurrenceNote {
 	date: string;
 	note: string | null;
 	mediaCount: number;
+	media: MediaItem[];
 }

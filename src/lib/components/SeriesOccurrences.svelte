@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import MediaGallery from '$lib/components/MediaGallery.svelte';
 	import { formatDayFr } from '$lib/dates/format';
 	import type { OrphanOccurrenceNote, SeriesOccurrence } from '$lib/entries/occurrence-types';
 
@@ -10,7 +11,7 @@
 	 * Props:
 	 * - `seriesId`     id of the recurrent entry
 	 * - `occurrences`  occurrences in chronological order (as returned by the service)
-	 * - `orphans`      notes attached to dates that are no longer occurrences
+	 * - `orphans`      notes attached to dates that are no longer occurrences (their media is shown inline)
 	 */
 	let {
 		seriesId,
@@ -60,7 +61,10 @@
 			<p class="hint">Ces notes concernent des dates qui ne sont plus des occurrences.</p>
 			<ul>
 				{#each orphans as orphan (orphan.id)}
-					<li>{@render row(orphan)}</li>
+					<li>
+						{@render row(orphan)}
+						{#if orphan.media.length > 0}<MediaGallery items={orphan.media} />{/if}
+					</li>
 				{/each}
 			</ul>
 		</section>

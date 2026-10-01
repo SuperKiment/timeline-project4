@@ -338,7 +338,7 @@ describe('entries service', () => {
 		expect(days).toEqual([{ day: '2020-07-02', authors: ['Alice', 'Bob'] }]);
 	});
 
-	it('caps the journal-link range to 366 days for an open-ended entry', () => {
+	it('caps the journal-link range to the most recent 366 days for an open-ended entry', () => {
 		const db = createTestDb();
 		const alice = insertUser(db, 'alice', 'Alice');
 		const created = validateEntryInput({
@@ -350,14 +350,14 @@ describe('entries service', () => {
 		const entry = createEntry(db, created.value, alice, now);
 
 		db.insert(journalEntries)
-			.values({ userId: alice, day: '2005-01-01', text: 'far', createdAt: now, updatedAt: now })
+			.values({ userId: alice, day: '2025-06-01', text: 'recent', createdAt: now, updatedAt: now })
 			.run();
 		db.insert(journalEntries)
-			.values({ userId: alice, day: '2000-06-01', text: 'near', createdAt: now, updatedAt: now })
+			.values({ userId: alice, day: '2000-06-01', text: 'oldest', createdAt: now, updatedAt: now })
 			.run();
 
 		const days = listJournalDaysForEntry(db, entry, '2026-01-01');
 
-		expect(days).toEqual([{ day: '2000-06-01', authors: ['Alice'] }]);
+		expect(days).toEqual([{ day: '2025-06-01', authors: ['Alice'] }]);
 	});
 });

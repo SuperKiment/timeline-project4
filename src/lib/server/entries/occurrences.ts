@@ -4,6 +4,7 @@ import type { OrphanOccurrenceNote, SeriesOccurrence } from '../../entries/occur
 import type { Db } from '../db';
 import { entries, media, occurrenceNotes } from '../db/schema';
 import { HttpError } from '../http-error';
+import { listMediaByOwner } from '../media/query';
 import { assertValidDay, MAX_TEXT_LENGTH } from '../time';
 
 export interface SeriesOccurrencesResult {
@@ -96,14 +97,22 @@ export function listSeriesOccurrences(
 		};
 	});
 
-	const orphans: OrphanOccurrenceNote[] = notes
-		.filter((n) => !validDates.has(n.occurrenceDate))
-		.map((n) => ({
+	const orphanNotes = notes.filter((n) => !validDates.has(n.occurrenceDate));
+	const orphanMedia = listMediaByOwner(
+		db,
+		'occurrence',
+		orphanNotes.map((n) => n.id)
+	);
+	const orphans: OrphanOccurrenceNote[] = orphanNotes.map((n) => {
+		const items = orphanMedia.get(n.id) ?? [];
+		return {
 			id: n.id,
 			date: n.occurrenceDate,
 			note: n.note,
-			mediaCount: countMedia(db, n.id)
-		}));
+			mediaCount: items.length,
+			media: items
+		};
+	});
 
 	return { occurrences: occurrenceList, orphans };
 }

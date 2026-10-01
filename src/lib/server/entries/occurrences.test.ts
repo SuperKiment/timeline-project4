@@ -115,7 +115,8 @@ describe('occurrences service', () => {
 			id: noteId,
 			date: '2022-06-15',
 			note: 'Ne pas perdre',
-			mediaCount: 0
+			mediaCount: 0,
+			media: []
 		});
 	});
 
@@ -354,7 +355,7 @@ describe('occurrences service', () => {
 		).toThrow(HttpError);
 	});
 
-	it('reports media count on orphan notes', () => {
+	it('returns media items on orphan notes', () => {
 		const seriesId = insertSeries(db, { originIso: '2020-06-15', freq: 'yearly' });
 		const noteId = upsertOccurrenceNote(db, seriesId, '2022-06-15', 'x', userId, NOW, TODAY);
 		db.insert(media)
@@ -370,6 +371,9 @@ describe('occurrences service', () => {
 			})
 			.run();
 		db.update(entries).set({ startSort: '2020-07-01' }).where(eq(entries.id, seriesId)).run();
-		expect(listSeriesOccurrences(db, seriesId, TODAY).orphans[0].mediaCount).toBe(1);
+		const [orphan] = listSeriesOccurrences(db, seriesId, TODAY).orphans;
+		expect(orphan.mediaCount).toBe(1);
+		expect(orphan.media).toHaveLength(1);
+		expect(orphan.media[0].url).toMatch(/^\/media\/\d+\/original$/);
 	});
 });
