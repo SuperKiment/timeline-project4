@@ -13,21 +13,16 @@
 	<title>Modifier l'entrée — Notre timeline</title>
 </svelte:head>
 
-<main>
+<main class="page-narrow">
 	<h1>Modifier l'entrée</h1>
 	<p class="meta">{authorInfo}</p>
 	<EntryForm values={form?.values ?? data.values} errors={form?.errors} submitLabel="Enregistrer" />
 </main>
 
 <style>
-	main {
-		max-width: 40rem;
-		margin: 0 auto;
-		padding: 1rem;
-	}
-
 	.meta {
+		margin: 0.5rem 0 1.25rem;
 		color: var(--color-text-muted);
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 	}
 </style>

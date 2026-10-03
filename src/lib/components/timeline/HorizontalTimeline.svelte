@@ -104,12 +104,22 @@
 	});
 </script>
 
-<div class="horizontal-timeline">
+<div class="horizontal-timeline pane">
 	<div class="zoom-controls">
-		<button type="button" aria-label="Dézoomer" onclick={() => zoomBy(1 / BUTTON_ZOOM_FACTOR)}>
+		<button
+			type="button"
+			class="glass"
+			aria-label="Dézoomer"
+			onclick={() => zoomBy(1 / BUTTON_ZOOM_FACTOR)}
+		>
 			−
 		</button>
-		<button type="button" aria-label="Zoomer" onclick={() => zoomBy(BUTTON_ZOOM_FACTOR)}>+</button>
+		<button
+			type="button"
+			class="glass"
+			aria-label="Zoomer"
+			onclick={() => zoomBy(BUTTON_ZOOM_FACTOR)}>+</button
+		>
 	</div>
 
 	<div
@@ -191,6 +201,8 @@
 	.horizontal-timeline {
 		position: relative;
 		width: 100%;
+		padding: 0;
+		overflow: hidden;
 	}
 
 	.zoom-controls {
@@ -203,15 +215,11 @@
 	}
 
 	.zoom-controls button {
-		min-width: 44px;
-		min-height: 44px;
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		background: var(--color-surface);
-		color: var(--color-text);
+		width: 44px;
+		padding: 0;
+		border-radius: var(--radius-pill);
 		font-size: 1.25rem;
 		line-height: 1;
-		cursor: pointer;
 	}
 
 	.scroll-area {
@@ -229,14 +237,14 @@
 	.ruler {
 		position: relative;
 		height: 28px;
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid var(--hairline);
 	}
 
 	.tick {
 		position: absolute;
 		top: 0;
 		bottom: 0;
-		border-left: 1px solid var(--color-border);
+		border-left: 1px solid var(--hairline);
 		padding-left: 4px;
 	}
 
@@ -251,7 +259,7 @@
 		top: 0;
 		bottom: 0;
 		width: 2px;
-		background: var(--color-important);
+		background: var(--color-accent);
 		pointer-events: none;
 		z-index: 1;
 	}
@@ -261,17 +269,17 @@
 	}
 
 	.phase-track {
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid var(--hairline);
 	}
 
 	.phase-band {
 		position: absolute;
 		display: flex;
 		align-items: center;
-		border-radius: 0.25rem;
-		background: color-mix(in srgb, var(--color-accent) 25%, var(--color-surface));
+		border-radius: var(--radius-pill);
+		background: var(--color-accent-soft);
 		color: var(--color-text);
-		padding: 0 0.375rem;
+		padding: 0 0.625rem;
 		overflow: hidden;
 		text-decoration: none;
 		white-space: nowrap;
@@ -286,11 +294,12 @@
 	.main-track,
 	.histoire-track {
 		height: 44px;
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid var(--hairline);
 	}
 
 	.histoire-track {
-		background: var(--color-surface);
+		border-bottom: none;
+		background: var(--hairline);
 	}
 
 	.marker {
@@ -318,6 +327,10 @@
 
 	.marker.important .marker-dot {
 		background: var(--color-important);
+	}
+
+	.marker.histoire {
+		color: var(--color-text-muted);
 	}
 
 	.marker.histoire .marker-dot {

@@ -16,14 +16,14 @@
 	<title>{data.title} — {formatDayFr(data.date)} — Notre timeline</title>
 </svelte:head>
 
-<main>
+<main class="page-narrow">
 	<p class="back">
 		<a href={resolve('/entries/[id]', { id: String(data.seriesId) })}>← {data.title}</a>
 	</p>
 	<h1>{data.title}</h1>
 	<p class="date">{formatDayFr(data.date, 'full')}</p>
 
-	<section aria-label="Note">
+	<section aria-label="Note" class="pane">
 		<h2>Note</h2>
 		{#if form && 'message' in form && form.message}
 			<p class="error" role="alert">{form.message}</p>
@@ -50,7 +50,7 @@
 		</form>
 	</section>
 
-	<section aria-label="Médias">
+	<section aria-label="Médias" class="pane">
 		<h2>Médias</h2>
 		<MediaGallery items={data.media} />
 		<MediaUploader owner={{ ownerKind: 'occurrence', seriesId: data.seriesId, date: data.date }} />
@@ -59,14 +59,16 @@
 
 <style>
 	main {
-		max-width: 40rem;
-		margin: 0 auto;
-		padding: 1rem;
+		display: grid;
+		gap: 1.25rem;
 	}
 
 	h1 {
-		margin: 0.25rem 0;
 		overflow-wrap: anywhere;
+	}
+
+	.back {
+		margin: 0;
 	}
 
 	.back a {
@@ -76,8 +78,12 @@
 	}
 
 	.date {
-		margin: 0.25rem 0 1rem;
+		margin: -0.75rem 0 0;
 		color: var(--color-text-muted);
+	}
+
+	.pane h2 {
+		margin-bottom: 0.75rem;
 	}
 
 	.field {
@@ -88,18 +94,10 @@
 
 	textarea {
 		width: 100%;
-		box-sizing: border-box;
-		padding: 0.5rem;
-		font: inherit;
-	}
-
-	button[type='submit'] {
-		min-height: 44px;
-		padding: 0 1rem;
 	}
 
 	.error {
-		color: var(--color-danger, #b00020);
+		color: var(--color-danger);
 	}
 
 	.saved {

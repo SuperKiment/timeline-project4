@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '@fontsource-variable/newsreader';
 	import '../app.css';
 	import AppNav from '$lib/components/AppNav.svelte';
 
@@ -14,9 +15,9 @@
 </div>
 
 <style>
-	/* Room for the fixed bottom tab bar (mobile), top bar is in normal flow (desktop). */
+	/* Room for the floating bottom nav (mobile), top bar is in normal flow (desktop). */
 	.app-content.with-nav {
-		padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+		padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 	}
 
 	@media (min-width: 1024px) {

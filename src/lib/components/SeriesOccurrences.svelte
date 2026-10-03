@@ -34,7 +34,7 @@
 	{/if}
 {/snippet}
 
-<section aria-label="Occurrences">
+<section aria-label="Occurrences" class="pane">
 	<h2>Occurrences</h2>
 	{#if newestFirst.length === 0}
 		<p class="empty">Aucune occurrence pour le moment.</p>
@@ -72,35 +72,44 @@
 </section>
 
 <style>
+	h2 {
+		margin-bottom: 0.5rem;
+	}
+
 	ul {
 		display: grid;
-		gap: 0.5rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;
+	}
+
+	li + li {
+		border-top: 1px solid var(--hairline);
 	}
 
 	.occurrences a {
 		display: grid;
 		gap: 0.125rem;
 		min-height: 44px;
-		padding: 0.5rem 0.75rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		background: var(--color-surface);
+		padding: 0.625rem 0;
 		color: var(--color-text);
 		text-decoration: none;
+	}
+
+	.orphans {
+		margin-top: 1rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--hairline);
 	}
 
 	.orphans li {
 		display: grid;
 		gap: 0.125rem;
-		padding: 0.5rem 0.75rem;
-		border: 1px dashed var(--color-border);
-		border-radius: 0.5rem;
+		padding: 0.625rem 0;
 	}
 
 	.date {
+		font-family: var(--font-sans);
 		font-weight: 600;
 	}
 
@@ -112,12 +121,26 @@
 		overflow: hidden;
 		overflow-wrap: anywhere;
 		white-space: pre-line;
+		color: var(--color-text-muted);
+		font-size: 0.9375rem;
+	}
+
+	.count {
+		justify-self: start;
+		padding: 0.0625rem 0.625rem;
+		border-radius: var(--radius-pill);
+		background: var(--surface-strong);
 	}
 
 	.count,
 	.hint,
 	.empty {
 		color: var(--color-text-muted);
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
+	}
+
+	.hint,
+	.empty {
+		margin: 0 0 0.5rem;
 	}
 </style>

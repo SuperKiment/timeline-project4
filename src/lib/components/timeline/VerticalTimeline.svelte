@@ -104,6 +104,8 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 0;
+		color: var(--color-text-muted);
+		font-size: 0.9375rem;
 	}
 
 	.vertical-timeline {
@@ -117,25 +119,39 @@
 		padding: 0.5rem 0;
 	}
 
+	/* Sticky header floats over content, so it may blur. */
 	.separator {
 		position: sticky;
 		top: 0;
 		z-index: 1;
 		margin: 0 0 0.5rem;
-		padding: 0.375rem 0.5rem;
-		background: var(--color-bg);
-		font-size: 1rem;
+		padding: 0.5rem 0.75rem;
+		border-radius: var(--radius-md);
+		background: var(--glass-bg);
+		-webkit-backdrop-filter: var(--blur);
+		backdrop-filter: var(--blur);
+		font-family: var(--font-sans);
+		font-size: 0.9375rem;
 		font-weight: 600;
-		text-transform: capitalize;
+		line-height: 1.3;
+		color: var(--color-text-muted);
+	}
+
+	.separator::first-letter {
+		text-transform: uppercase;
 	}
 
 	.separator.year {
-		font-size: 1.25rem;
+		font-family: var(--font-serif);
+		font-size: 1.75rem;
+		line-height: 1.2;
+		color: var(--color-text);
 	}
 
 	.row {
 		display: flex;
 		gap: 0.5rem;
+		border-left: 1px solid var(--hairline);
 	}
 
 	.lanes {
@@ -143,24 +159,26 @@
 		width: calc(3 * 0.5rem);
 		display: flex;
 		gap: 2px;
+		padding-left: 4px;
 	}
 
 	.lane-band {
-		width: 4px;
-		border-radius: 2px;
-		background: var(--color-accent);
+		width: 6px;
+		border-radius: var(--radius-pill);
+		background: color-mix(in srgb, var(--color-accent) 35%, transparent);
 	}
 
 	.lane-band[data-lane='1'] {
-		background: var(--color-important);
+		background: color-mix(in srgb, var(--color-important) 35%, transparent);
 	}
 
 	.lane-band[data-lane='2'] {
-		background: var(--color-text-muted);
+		background: color-mix(in srgb, var(--color-text-muted) 35%, transparent);
 	}
 
 	.columns {
 		flex: 1;
+		min-width: 0;
 		display: grid;
 		grid-template-columns: 1fr;
 		gap: 0.75rem;
@@ -170,13 +188,12 @@
 	.histoire-column {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.625rem;
 	}
 
 	.histoire-column {
-		background: var(--color-surface);
-		border-radius: 0.5rem;
-		padding: 0.5rem;
+		padding-left: 0.75rem;
+		border-left: 1px solid var(--hairline);
 	}
 
 	@media (min-width: 768px) {
@@ -188,9 +205,10 @@
 	.today-marker {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.75rem;
 		margin: 0.5rem 0;
 		color: var(--color-accent);
+		font-size: 0.9375rem;
 		font-weight: 600;
 	}
 
@@ -199,6 +217,7 @@
 		content: '';
 		flex: 1;
 		height: 2px;
+		border-radius: var(--radius-pill);
 		background: var(--color-accent);
 	}
 </style>

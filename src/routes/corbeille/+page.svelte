@@ -10,7 +10,7 @@
 	<title>Corbeille — Notre timeline</title>
 </svelte:head>
 
-<main>
+<main class="page-narrow">
 	<h1>Corbeille</h1>
 
 	{#if form && 'message' in form}
@@ -20,7 +20,7 @@
 	{#if data.items.length === 0}
 		<p class="empty">La corbeille est vide</p>
 	{:else}
-		<ul class="items">
+		<ul class="items pane">
 			{#each data.items as item (`${item.kind}-${item.id}`)}
 				<li class="item">
 					<p class="type">{item.typeLabel}</p>
@@ -37,6 +37,7 @@
 								label="Supprimer définitivement"
 								confirmText="Supprimer définitivement ?"
 								formaction="?/purge"
+								class="btn-danger"
 							/>
 						</form>
 					{/if}
@@ -47,50 +48,53 @@
 </main>
 
 <style>
-	main {
-		max-width: 40rem;
-		margin: 0 auto;
-		padding: 1rem;
+	h1 {
+		margin-bottom: 1.25rem;
 	}
 
 	.items {
-		display: grid;
-		gap: 0.75rem;
 		margin: 0;
-		padding: 0;
 		list-style: none;
+		padding-block: 0.25rem;
 	}
 
 	.item {
-		padding: 0.75rem 1rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		background: var(--color-surface);
+		padding-block: 0.875rem;
+		border-top: 1px solid var(--hairline);
+	}
+
+	.item:first-child {
+		border-top: none;
 	}
 
 	.item p {
-		margin: 0.25rem 0;
+		margin: 0.125rem 0;
 	}
 
 	.type,
-	.dates,
+	.dates {
+		color: var(--color-text-muted);
+	}
+
 	.empty {
+		margin-top: 3rem;
+		text-align: center;
 		color: var(--color-text-muted);
 	}
 
 	.type {
-		font-size: 0.875rem;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		font-size: 0.8125rem;
 	}
 
 	.title {
+		font-family: var(--font-serif);
 		font-weight: 600;
+		font-size: 1.125rem;
 		overflow-wrap: anywhere;
 	}
 
 	.dates {
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 	}
 
 	.error {
@@ -100,18 +104,13 @@
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.75rem;
+		gap: 0.5rem;
 		margin-top: 0.5rem;
 	}
 
 	.restore {
-		min-height: 44px;
-		min-width: 44px;
-		padding: 0 1rem;
+		background: var(--surface-strong);
 		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		background: var(--color-bg);
 		color: var(--color-text);
-		cursor: pointer;
 	}
 </style>

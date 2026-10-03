@@ -49,21 +49,4 @@
 		flex-wrap: wrap;
 		gap: 0.5rem;
 	}
-
-	.chip {
-		min-height: 44px;
-		padding: 0 0.875rem;
-		border: 1px solid var(--color-border);
-		border-radius: 999px;
-		background: var(--color-bg);
-		color: var(--color-text-muted);
-		cursor: pointer;
-	}
-
-	.chip[aria-pressed='true'] {
-		background: var(--color-accent);
-		border-color: var(--color-accent);
-		color: var(--color-accent-contrast);
-		font-weight: 600;
-	}
 </style>

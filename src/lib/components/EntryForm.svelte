@@ -38,7 +38,7 @@
 	);
 </script>
 
-<form method="POST" novalidate>
+<form method="POST" novalidate class="pane">
 	<div class="field">
 		<label class="label" for="{uid}-type">Type</label>
 		<select id="{uid}-type" name="type" bind:value={type}>
@@ -85,7 +85,7 @@
 
 	<div class="field">
 		<label class="label" for="{uid}-title">Titre <span aria-hidden="true">*</span></label>
-		<input id="{uid}-title" type="text" name="title" value={values.title} required />
+		<input id="{uid}-title" class="title" type="text" name="title" value={values.title} required />
 		{#if errors.title}<p class="error" role="alert">{errors.title}</p>{/if}
 	</div>
 
@@ -109,50 +109,57 @@
 
 	<TagInput name="tags" tags={values.tags} />
 
-	<button type="submit" class="submit">{submitLabel}</button>
+	<button type="submit">{submitLabel}</button>
 </form>
 
 <style>
 	form {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 1.25rem;
 	}
 
 	.field {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: 0.375rem;
 	}
 
 	.label {
+		font-size: 0.9375rem;
 		font-weight: 600;
 	}
 
 	.hint {
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 		color: var(--color-text-muted);
 	}
 
 	.error {
 		margin: 0;
+		font-size: 0.9375rem;
 		color: var(--color-danger);
 	}
 
-	textarea {
-		font: inherit;
-		padding: 0.5rem;
+	.title {
+		font-family: var(--font-serif);
+		font-size: 1.125rem;
 	}
 
-	.submit {
-		min-height: 44px;
+	textarea {
+		font-family: var(--font-serif);
+		font-size: 1.125rem;
+		line-height: 1.65;
+		resize: vertical;
+	}
+
+	button[type='submit'] {
 		align-self: flex-start;
-		padding: 0 1.25rem;
-		border: none;
-		border-radius: 0.5rem;
-		background: var(--color-accent);
-		color: var(--color-accent-contrast);
-		font-weight: 600;
-		cursor: pointer;
+	}
+
+	@media (max-width: 479px) {
+		button[type='submit'] {
+			align-self: stretch;
+		}
 	}
 </style>

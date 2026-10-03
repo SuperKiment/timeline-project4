@@ -23,7 +23,7 @@
 	<title>{data.title} — Notre timeline</title>
 </svelte:head>
 
-<main>
+<main class="page-narrow">
 	<article class:important={data.type === 'important'}>
 		<header>
 			<p class="type">{TYPE_LABELS[data.type]}</p>
@@ -55,14 +55,14 @@
 			/>
 		{/if}
 
-		<section aria-label="Médias">
+		<section aria-label="Médias" class="pane">
 			<h2>Médias</h2>
 			<MediaGallery items={data.media} />
 			<MediaUploader owner={{ ownerKind: 'entry', ownerId: data.id }} />
 		</section>
 
 		{#if data.journalDays.length > 0}
-			<section aria-label="Journal">
+			<section aria-label="Journal" class="pane">
 				<h2>Journal sur la période</h2>
 				<ul class="journal">
 					{#each data.journalDays as link (link.day)}
@@ -81,39 +81,39 @@
 		</p>
 
 		<form method="POST" class="actions">
-			<a class="btn edit" href={resolve('/entries/[id]/edit', { id: String(data.id) })}>Modifier</a>
+			<a class="btn" href={resolve('/entries/[id]/edit', { id: String(data.id) })}>Modifier</a>
 			<ConfirmButton label="Supprimer" formaction="?/delete" />
 		</form>
 	</article>
 </main>
 
 <style>
-	main {
-		max-width: 40rem;
-		margin: 0 auto;
-		padding: 1rem;
+	article {
+		display: grid;
+		gap: 1.25rem;
 	}
 
-	article.important {
-		border-left: 4px solid var(--color-important);
-		padding-left: 0.75rem;
-	}
-
-	article.important h1,
-	article.important .type {
-		color: var(--color-important);
+	header {
+		display: grid;
+		justify-items: start;
+		gap: 0.5rem;
 	}
 
 	.type {
 		margin: 0;
-		font-size: 0.875rem;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		padding: 0.25rem 0.75rem;
+		border-radius: var(--radius-pill);
+		background: var(--surface-strong);
 		color: var(--color-text-muted);
+		font-size: 0.8125rem;
+		font-weight: 500;
+	}
+
+	article.important .type {
+		color: var(--color-important);
 	}
 
 	h1 {
-		margin: 0.25rem 0;
 		overflow-wrap: anywhere;
 	}
 
@@ -121,46 +121,60 @@
 	.location,
 	.meta,
 	.authors {
+		margin: 0;
 		color: var(--color-text-muted);
 	}
 
-	.period,
-	.location {
-		margin: 0.25rem 0;
-	}
-
 	.meta {
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 	}
 
 	.tags {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.375rem;
-		margin: 0.5rem 0;
+		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
 
 	.tags li {
 		padding: 0.125rem 0.625rem;
-		border: 1px solid var(--color-border);
-		border-radius: 999px;
-		background: var(--color-surface);
-		font-size: 0.875rem;
+		border-radius: var(--radius-pill);
+		background: var(--surface-strong);
+		border: 1px solid var(--hairline);
+		color: var(--color-text-muted);
+		font-size: 0.8125rem;
 	}
 
 	.description {
-		margin: 1rem 0;
+		font-family: var(--font-serif);
+		font-size: 1.125rem;
+		line-height: 1.65;
+		max-width: 70ch;
 		overflow-wrap: anywhere;
+	}
+
+	.pane h2 {
+		margin-bottom: 0.75rem;
 	}
 
 	.journal {
 		display: grid;
-		gap: 0.25rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;
+	}
+
+	.journal li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		column-gap: 0.75rem;
+	}
+
+	.journal li + li {
+		border-top: 1px solid var(--hairline);
 	}
 
 	.journal a {
@@ -173,18 +187,5 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
-		margin-top: 1.5rem;
-	}
-
-	.edit {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0 1rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		background: var(--color-surface);
-		color: var(--color-text);
-		text-decoration: none;
 	}
 </style>

@@ -31,7 +31,7 @@
 	<title>Notre timeline</title>
 </svelte:head>
 
-<main class="home">
+<main class="page home">
 	<header class="top">
 		<h1>Notre timeline</h1>
 		<a class="btn this-day" href={resolve('/ce-jour-la')}>Ce jour-là</a>
@@ -41,7 +41,7 @@
 		<section class="empty" aria-labelledby="empty-title">
 			<h2 id="empty-title">Votre timeline est vide</h2>
 			<p>Commencez par ajouter votre premier souvenir.</p>
-			<a class="btn primary" href={resolve('/entries/new')}>Ajouter un souvenir</a>
+			<a class="btn btn-primary" href={resolve('/entries/new')}>Ajouter un souvenir</a>
 		</section>
 	{:else}
 		<div class="controls">
@@ -60,44 +60,23 @@
 		{/if}
 	{/if}
 
-	<a class="btn fab" href={resolve('/entries/new')}><span aria-hidden="true">+</span> Ajouter</a>
+	<a class="btn btn-primary fab" href={resolve('/entries/new')}
+		><span aria-hidden="true">+</span> Ajouter</a
+	>
 </main>
 
 <style>
-	.home {
-		padding: 1rem;
-	}
-
 	.top {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: 0.75rem;
+		margin-block-end: 1rem;
 	}
 
-	h1 {
+	.top h1 {
 		margin: 0;
-		font-size: 1.5rem;
-	}
-
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.375rem;
-		padding: 0 1rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		text-decoration: none;
-	}
-
-	.btn.primary,
-	.btn.fab {
-		background: var(--color-accent);
-		border-color: var(--color-accent);
-		color: var(--color-accent-contrast);
-		font-weight: 600;
 	}
 
 	.controls {
@@ -106,7 +85,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.75rem;
-		margin: 1rem 0;
+		margin: 1.25rem 0;
 	}
 
 	.empty {
@@ -123,25 +102,25 @@
 		margin: 0;
 	}
 
+	.empty p,
 	.no-match {
 		color: var(--color-text-muted);
 	}
 
-	/* Above the fixed mobile bottom nav (~64px + safe area). */
+	/* Mobile: above the floating nav (64px + 12px offset) with a 12px gap, plus breathing room. */
 	.fab {
 		position: fixed;
-		right: 1rem;
-		bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 1rem);
+		right: 16px;
+		bottom: calc(64px + 12px + 12px + 12px + env(safe-area-inset-bottom, 0px));
 		z-index: 40;
 		min-width: 44px;
-		min-height: 48px;
-		border-radius: 999px;
-		box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+		box-shadow: var(--shadow-float);
 	}
 
 	@media (min-width: 1024px) {
 		.fab {
-			bottom: 1.5rem;
+			right: 24px;
+			bottom: 24px;
 		}
 	}
 </style>

@@ -14,40 +14,60 @@
 </svelte:head>
 
 <main>
-	<h1>Connexion</h1>
+	<div class="sheet">
+		<h1>Connexion</h1>
 
-	<form method="POST">
-		<input type="hidden" name="redirectTo" value={data.redirectTo ?? ''} />
+		<form method="POST">
+			<input type="hidden" name="redirectTo" value={data.redirectTo ?? ''} />
 
-		<label>
-			Identifiant
-			<input
-				type="text"
-				name="username"
-				autocomplete="username"
-				value={form?.username ?? ''}
-				required
-			/>
-		</label>
+			<label>
+				Identifiant
+				<input
+					type="text"
+					name="username"
+					autocomplete="username"
+					value={form?.username ?? ''}
+					required
+				/>
+			</label>
 
-		<label>
-			Mot de passe
-			<input type="password" name="password" autocomplete="current-password" required />
-		</label>
+			<label>
+				Mot de passe
+				<input type="password" name="password" autocomplete="current-password" required />
+			</label>
 
-		{#if form?.error}
-			<p class="error" role="alert">{form.error}</p>
-		{/if}
+			{#if form?.error}
+				<p class="error" role="alert">{form.error}</p>
+			{/if}
 
-		<button type="submit">Se connecter</button>
-	</form>
+			<button type="submit">Se connecter</button>
+		</form>
+	</div>
 </main>
 
 <style>
 	main {
-		max-width: 24rem;
-		margin: 4rem auto;
-		padding: 0 1rem;
+		min-height: 100dvh;
+		display: grid;
+		place-items: center;
+		padding: 1rem;
+	}
+
+	.sheet {
+		width: 100%;
+		max-width: 400px;
+		padding: 2rem;
+		background: var(--glass-bg);
+		-webkit-backdrop-filter: var(--blur);
+		backdrop-filter: var(--blur);
+		border: 1px solid var(--glass-border);
+		border-radius: var(--radius-xl);
+		box-shadow: var(--shadow-float);
+	}
+
+	h1 {
+		margin-bottom: 1.5rem;
+		text-align: center;
 	}
 
 	form {
@@ -59,10 +79,22 @@
 	label {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: 0.375rem;
+		font-size: 0.9375rem;
+		font-weight: 500;
+	}
+
+	input {
+		width: 100%;
+	}
+
+	button[type='submit'] {
+		width: 100%;
 	}
 
 	.error {
+		margin: 0;
 		color: var(--color-danger);
+		font-size: 0.9375rem;
 	}
 </style>

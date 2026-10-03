@@ -76,6 +76,7 @@
 			{#if canDelete}
 				<ConfirmButton
 					label="Supprimer"
+					class="btn-danger"
 					confirmText="Supprimer ce média ?"
 					onconfirm={() => remove(item)}
 				/>
@@ -84,18 +85,18 @@
 	{/each}
 </ul>
 
-<dialog bind:this={viewer} class="viewer" aria-label="Photo" onclose={() => (viewed = null)}>
+<dialog bind:this={viewer} class="viewer glass" aria-label="Photo" onclose={() => (viewed = null)}>
 	{#if viewed}
 		<img src={viewed.url} alt="" />
 	{/if}
-	<button type="button" onclick={() => viewer?.close()}>Fermer</button>
+	<button type="button" class="glass close" onclick={() => viewer?.close()}>Fermer</button>
 </dialog>
 
 <style>
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-		gap: 0.75rem;
+		gap: 8px;
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -104,23 +105,26 @@
 	li {
 		display: grid;
 		gap: 0.375rem;
+		align-content: start;
 	}
 
 	.cell {
 		position: relative;
 		aspect-ratio: 1;
 		overflow: hidden;
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		background: var(--color-surface);
+		border: 1px solid var(--glass-border);
+		border-radius: var(--radius-md);
+		background: var(--surface);
 	}
 
 	.thumb {
 		display: block;
 		width: 100%;
 		height: 100%;
+		min-height: 0;
 		padding: 0;
 		border: 0;
+		border-radius: 0;
 		background: transparent;
 		cursor: zoom-in;
 	}
@@ -151,35 +155,34 @@
 	}
 
 	.viewer {
-		max-width: 95vw;
+		max-width: min(95vw, 1100px);
 		max-height: 95vh;
-		padding: 0.5rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.75rem;
-		background: var(--color-surface);
+		padding: 0.75rem;
+		border-radius: var(--radius-xl);
 		color: var(--color-text);
 	}
 
 	.viewer::backdrop {
-		background: rgb(0 0 0 / 0.7);
+		background: rgb(0 0 0 / 0.6);
+		-webkit-backdrop-filter: blur(12px);
+		backdrop-filter: blur(12px);
 	}
 
 	.viewer img {
 		width: auto;
 		max-width: 100%;
 		max-height: 80vh;
+		border-radius: var(--radius-md);
 		object-fit: contain;
 	}
 
-	.viewer button {
+	.viewer .close {
 		min-height: 44px;
 		min-width: 44px;
 		margin-top: 0.5rem;
-		padding: 0 1rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		background: var(--color-bg);
+		padding: 0 1.125rem;
+		border-radius: var(--radius-pill);
+		box-shadow: none;
 		color: var(--color-text);
-		cursor: pointer;
 	}
 </style>

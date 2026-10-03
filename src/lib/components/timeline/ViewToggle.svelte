@@ -24,23 +24,25 @@
 <style>
 	.view-toggle {
 		display: inline-flex;
+		gap: 2px;
+		padding: 4px;
 		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		overflow: hidden;
+		border-radius: var(--radius-pill);
+		background: var(--surface-strong);
 	}
 
 	button {
 		min-height: 44px;
-		padding: 0 0.875rem;
+		padding: 0 1rem;
 		border: none;
-		background: var(--color-bg);
+		background: transparent;
 		color: var(--color-text-muted);
-		cursor: pointer;
+		font-size: 0.9375rem;
 	}
 
 	button[aria-pressed='true'] {
-		background: var(--color-accent);
-		color: var(--color-accent-contrast);
-		font-weight: 600;
+		background: var(--glass-bg);
+		color: var(--color-accent);
+		box-shadow: var(--shadow-pane);
 	}
 </style>

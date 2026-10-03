@@ -132,22 +132,28 @@
 		border: none;
 		margin: 0;
 		padding: 0;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
 	}
 
 	legend {
+		font-size: 0.9375rem;
 		font-weight: 600;
 		padding: 0;
+		margin-bottom: 0.5rem;
 	}
 
 	.precision-control {
 		display: inline-flex;
+		gap: 2px;
+		padding: 3px;
+		border-radius: var(--radius-pill);
+		background: var(--surface-strong);
 		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		overflow: hidden;
 		width: fit-content;
+		max-width: 100%;
 	}
 
 	.precision-option {
@@ -157,25 +163,31 @@
 		justify-content: center;
 		min-height: 44px;
 		min-width: 44px;
-		padding: 0 0.75rem;
+		padding: 0 1rem;
+		border-radius: var(--radius-pill);
+		font-size: 0.9375rem;
+		font-weight: 500;
 		cursor: pointer;
-		background: var(--color-surface);
 		color: var(--color-text);
 	}
 
-	.precision-option + .precision-option {
-		border-left: 1px solid var(--color-border);
+	.precision-option.selected {
+		background: var(--glass-bg);
+		box-shadow: var(--shadow-pane);
+		font-weight: 600;
 	}
 
-	.precision-option.selected {
-		background: var(--color-accent);
-		color: var(--color-accent-contrast);
+	.precision-option:focus-within {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 2px;
 	}
 
 	.precision-option input[type='radio'] {
 		position: absolute;
 		width: 1px;
 		height: 1px;
+		min-height: 0;
+		padding: 0;
 		overflow: hidden;
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
@@ -183,19 +195,24 @@
 
 	.fields {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: 0.75rem;
 	}
 
 	.field {
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
-		min-width: 6rem;
+		flex: 1 1 5.5rem;
+		min-width: 0;
+	}
+
+	/* The month select holds "septembre": give it the spare room. */
+	.field:has(select) {
+		flex: 2.2 1 8rem;
 	}
 
 	.field span {
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 		color: var(--color-text-muted);
 	}
 </style>

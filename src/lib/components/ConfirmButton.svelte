@@ -92,54 +92,44 @@
 
 <style>
 	.trigger {
-		min-height: 44px;
-		min-width: 44px;
-		padding: 0 1rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		background: transparent;
+		border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+		background: var(--surface-strong);
 		color: var(--color-danger);
-		cursor: pointer;
 	}
 
 	.confirm-dialog {
 		max-width: min(90vw, 24rem);
-		padding: 1.25rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.75rem;
-		background: var(--color-surface);
+		padding: 1.5rem;
+		border: 1px solid var(--glass-border);
+		border-radius: var(--radius-xl);
+		background: var(--glass-bg);
+		-webkit-backdrop-filter: var(--blur);
+		backdrop-filter: var(--blur);
+		box-shadow: var(--shadow-float);
 		color: var(--color-text);
 	}
 
 	.confirm-dialog::backdrop {
-		background: rgb(0 0 0 / 0.5);
+		background: rgb(0 0 0 / 0.35);
+		-webkit-backdrop-filter: blur(8px);
+		backdrop-filter: blur(8px);
 	}
 
 	p {
-		margin: 0 0 1rem;
+		margin: 0 0 1.25rem;
 		font-weight: 600;
 	}
 
 	.actions {
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: flex-end;
 		gap: 0.5rem;
-	}
-
-	.actions button {
-		min-height: 44px;
-		min-width: 44px;
-		padding: 0 1rem;
-		border-radius: 0.5rem;
-		border: 1px solid var(--color-border);
-		background: var(--color-bg);
-		color: var(--color-text);
-		cursor: pointer;
 	}
 
 	.actions .confirm {
 		background: var(--color-danger);
 		border-color: var(--color-danger);
-		color: var(--color-bg);
+		color: white;
 	}
 </style>

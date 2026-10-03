@@ -45,7 +45,7 @@
 	{#if tags.length > 0}
 		<ul class="chips">
 			{#each tags as tag (tag)}
-				<li class="chip">
+				<li class="tag">
 					<span>{tag}</span>
 					<button type="button" aria-label="Retirer le tag {tag}" onclick={() => remove(tag)}>
 						×
@@ -73,6 +73,7 @@
 	}
 
 	.label {
+		font-size: 0.9375rem;
 		font-weight: 600;
 	}
 
@@ -85,22 +86,25 @@
 		padding: 0;
 	}
 
-	.chip {
+	.tag {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.25rem;
-		padding-left: 0.75rem;
-		border: 1px solid var(--color-border);
-		border-radius: 999px;
-		background: var(--color-surface);
+		padding-left: 0.875rem;
+		border-radius: var(--radius-pill);
+		background: var(--color-accent-soft);
+		color: var(--color-accent);
+		font-size: 0.9375rem;
+		font-weight: 500;
+		overflow-wrap: anywhere;
 	}
 
-	.chip button {
+	.tag button {
 		min-width: 44px;
+		padding: 0;
 		border: none;
 		background: transparent;
-		color: var(--color-text);
+		color: inherit;
 		font-size: 1.25rem;
-		cursor: pointer;
+		line-height: 1;
 	}
 </style>

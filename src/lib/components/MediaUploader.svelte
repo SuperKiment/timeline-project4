@@ -91,18 +91,18 @@
 	}
 
 	.pick {
-		display: inline-flex;
+		display: flex;
 		align-items: center;
 		justify-content: center;
 		min-height: 44px;
-		min-width: 44px;
-		padding: 0 1rem;
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		background: var(--color-surface);
+		padding: 1.25rem 1rem;
+		border: 1.5px dashed var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--surface);
 		color: var(--color-text);
+		font-weight: 600;
+		text-align: center;
 		cursor: pointer;
-		justify-self: start;
 	}
 
 	.pick:focus-within {
@@ -120,6 +120,7 @@
 		position: absolute;
 		width: 1px;
 		height: 1px;
+		min-height: 0;
 		opacity: 0;
 		overflow: hidden;
 	}
@@ -140,15 +141,35 @@
 	.name {
 		overflow-wrap: anywhere;
 		color: var(--color-text-muted);
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 	}
 
 	progress {
 		width: 100%;
-		accent-color: var(--color-accent);
+		height: 8px;
+		appearance: none;
+		border: none;
+		border-radius: var(--radius-pill);
+		background: var(--hairline);
+		overflow: hidden;
+	}
+
+	progress::-webkit-progress-bar {
+		background: var(--hairline);
+	}
+
+	progress::-webkit-progress-value {
+		background: var(--color-accent);
+		border-radius: var(--radius-pill);
+	}
+
+	progress::-moz-progress-bar {
+		background: var(--color-accent);
+		border-radius: var(--radius-pill);
 	}
 
 	.errors {
 		color: var(--color-danger);
+		font-size: 0.9375rem;
 	}
 </style>

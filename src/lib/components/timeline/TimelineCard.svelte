@@ -5,8 +5,14 @@
 	let { item }: { item: TimelineItem } = $props();
 </script>
 
-<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- itemHref() already returns a resolve()d path -->
-<a class="card" class:important={item.type === 'important'} href={itemHref(item)}>
+<!-- eslint-disable svelte/no-navigation-without-resolve -- itemHref() already returns a resolve()d path -->
+<a
+	href={itemHref(item)}
+	class="card"
+	class:important={item.type === 'important'}
+	class:histoire={item.type === 'histoire'}
+>
+	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 	{#if item.thumbUrl}
 		<img
 			class="thumb"
@@ -32,19 +38,32 @@
 
 <style>
 	.card {
+		position: relative;
 		display: flex;
 		gap: 0.75rem;
-		padding: 0.5rem;
-		border-radius: 0.5rem;
+		padding: 0.875rem 1rem;
+		overflow: hidden;
+		border-radius: var(--radius-lg);
 		text-decoration: none;
 		color: var(--color-text);
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-left: 3px solid transparent;
+		background: var(--surface);
+		border: 1px solid var(--glass-border);
+		box-shadow: var(--shadow-pane);
 	}
 
-	.card.important {
-		border-left-color: var(--color-important);
+	/* Important: a visible inner bar on the leading edge. */
+	.card.important::before {
+		content: '';
+		position: absolute;
+		inset: 0 auto 0 0;
+		width: 4px;
+		background: var(--color-important);
+	}
+
+	/* Histoire (grey track): quieter, flat. */
+	.card.histoire {
+		background: color-mix(in srgb, var(--surface) 55%, transparent);
+		box-shadow: none;
 	}
 
 	.thumb {
@@ -52,8 +71,8 @@
 		width: 56px;
 		height: 56px;
 		object-fit: cover;
-		border-radius: 0.375rem;
-		background: var(--color-border);
+		border-radius: var(--radius-sm);
+		background: var(--hairline);
 	}
 
 	.body {
@@ -63,7 +82,8 @@
 		gap: 0.125rem;
 	}
 
-	.date {
+	.date,
+	.location {
 		margin: 0;
 		font-size: 0.8125rem;
 		color: var(--color-text-muted);
@@ -71,20 +91,20 @@
 
 	.title {
 		margin: 0;
-		font-size: 1rem;
+		font-family: var(--font-serif);
+		font-size: 1.125rem;
 		font-weight: 600;
+		line-height: 1.3;
 		overflow-wrap: anywhere;
-	}
-
-	.location {
-		margin: 0;
-		font-size: 0.8125rem;
-		color: var(--color-text-muted);
 	}
 
 	.note-badge {
 		align-self: flex-start;
+		padding: 0 0.5rem;
+		border-radius: var(--radius-pill);
+		background: var(--color-accent-soft);
 		font-size: 0.75rem;
+		font-weight: 600;
 		color: var(--color-accent);
 	}
 </style>
