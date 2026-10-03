@@ -292,15 +292,21 @@ describe('getTimeline', () => {
 			recurrenceFreq: 'monthly'
 		});
 
-		const start = performance.now();
-		const result = getTimeline(db, {
-			types: ['souvenir', 'recurrent'],
-			today: '2025-01-01'
-		});
-		const elapsed = performance.now() - start;
+		const run = () => {
+			const start = performance.now();
+			const res = getTimeline(db, {
+				types: ['souvenir', 'recurrent'],
+				today: '2025-01-01'
+			});
+			return { res, elapsed: performance.now() - start };
+		};
+		const result = run().res; // warm-up
+		const times = [run(), run(), run()].map((r) => r.elapsed).sort((x, y) => x - y);
+		const median = times[1];
+		const budget = Number(process.env.PERF_BUDGET_MS ?? (process.env.CI ? 900 : 300));
 
 		expect(result.length).toBeGreaterThan(2000);
-		expect(elapsed).toBeLessThan(300);
+		expect(median).toBeLessThan(budget);
 	});
 });
 

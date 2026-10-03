@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql, type AnyColumn } from 'drizzle-orm';
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { PRECISIONS } from '../../dates/fuzzy';
 import { ENTRY_TYPES } from '../../timeline/types';
@@ -10,6 +10,13 @@ import { ENTRY_TYPES } from '../../timeline/types';
  * their sync triggers are NOT declared here (drizzle-kit cannot generate
  * virtual tables); they live in a hand-written custom migration instead.
  */
+
+/**
+ * `col in ('a','b')` built from a compile-time constant tuple, so CHECK
+ * constraints cannot drift from the TS enums (values are never user input).
+ */
+const inList = (column: AnyColumn, values: readonly string[]) =>
+	sql`${column} in (${sql.raw(values.map((v) => `'${v}'`).join(','))})`;
 
 export const users = sqliteTable('users', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
@@ -55,18 +62,15 @@ export const entries = sqliteTable(
 	(table) => [
 		index('entries_start_sort_idx').on(table.startSort),
 		index('entries_type_idx').on(table.type),
-		check(
-			'entries_type_check',
-			sql`${table.type} in ('souvenir','important','phase','recurrent','histoire')`
-		),
-		check('entries_start_precision_check', sql`${table.startPrecision} in ('day','month','year')`),
+		check('entries_type_check', inList(table.type, ENTRY_TYPES)),
+		check('entries_start_precision_check', inList(table.startPrecision, PRECISIONS)),
 		check(
 			'entries_end_precision_check',
-			sql`${table.endPrecision} is null or ${table.endPrecision} in ('day','month','year')`
+			sql`${table.endPrecision} is null or ${inList(table.endPrecision, PRECISIONS)}`
 		),
 		check(
 			'entries_recurrence_freq_check',
-			sql`${table.recurrenceFreq} is null or ${table.recurrenceFreq} in ('yearly','monthly')`
+			sql`${table.recurrenceFreq} is null or ${inList(table.recurrenceFreq, RECURRENCE_FREQS)}`
 		)
 	]
 );
@@ -143,7 +147,7 @@ export const media = sqliteTable(
 		index('media_entry_idx').on(table.entryId),
 		index('media_occurrence_note_idx').on(table.occurrenceNoteId),
 		index('media_journal_entry_idx').on(table.journalEntryId),
-		check('media_kind_check', sql`${table.kind} in ('photo','video')`),
+		check('media_kind_check', inList(table.kind, MEDIA_KINDS)),
 		check(
 			'media_one_owner_check',
 			sql`(

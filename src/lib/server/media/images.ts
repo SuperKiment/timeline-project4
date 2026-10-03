@@ -124,7 +124,10 @@ export async function processPhoto(tmpPath: string, sniff: SniffResult): Promise
 			.resize({ width: THUMB_WIDTH, withoutEnlargement: true })
 			.webp({ quality: 80 })
 			.toBuffer();
-	} catch {
+	} catch (err) {
+		if (err instanceof Error && /pixel limit/i.test(err.message)) {
+			throw new MediaError('Image trop grande.');
+		}
 		throw new MediaError('Image illisible.');
 	}
 

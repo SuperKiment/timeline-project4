@@ -175,6 +175,44 @@ describe('processPhoto', () => {
 		);
 	});
 
+	it('rejects a HEIC reporting more than 50 megapixels before decoding it (EC-9)', async () => {
+		// No HEIC encoder is available to build a real oversized fixture, so only
+		// the libheif metadata read is stubbed (10000x6000 = 60 MP); the limit
+		// check in processPhoto runs for real.
+		const heicConvert = vi.fn();
+		vi.resetModules();
+		vi.doMock('sharp', () => ({
+			default: () => ({ metadata: async () => ({ format: 'heif', width: 10000, height: 6000 }) })
+		}));
+		vi.doMock('heic-convert', () => ({ default: heicConvert }));
+		try {
+			const { processPhoto } = await import('./images');
+			const { MediaError } = await import('./validate');
+			const fixture = path.join(FIXTURES, 'photo.heic');
+
+			await expect(processPhoto(fixture, HEIC_SNIFF)).rejects.toThrow(MediaError);
+			await expect(processPhoto(fixture, HEIC_SNIFF)).rejects.toThrow(/Image trop grande/);
+			expect(heicConvert).not.toHaveBeenCalled();
+		} finally {
+			vi.doUnmock('sharp');
+			vi.doUnmock('heic-convert');
+			vi.resetModules();
+		}
+	});
+
+	it('rejects an oversized non-HEIC image with "Image trop grande"', async () => {
+		const { processPhoto } = await import('./images');
+		const bigPath = path.join(dataDir, 'big.png');
+		const buf = await sharp({
+			create: { width: 8000, height: 7000, channels: 3, background: '#000' }
+		})
+			.png()
+			.toBuffer();
+		await fs.writeFile(bigPath, buf);
+
+		await expect(processPhoto(bigPath, PNG_SNIFF)).rejects.toThrow(/Image trop grande/);
+	});
+
 	it('throws MediaError on a truncated JPEG instead of crashing (EC-9)', async () => {
 		const { processPhoto } = await import('./images');
 		const { MediaError } = await import('./validate');

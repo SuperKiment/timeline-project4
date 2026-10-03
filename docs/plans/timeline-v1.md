@@ -264,11 +264,11 @@ exit: `npm install && npm run build && npm run check && npm run lint && npm test
 
 ## Follow-ups (from reviews, non-blocking)
 
-- F1 (B3 design W): `src/lib/server/db/schema.ts` CHECK constraints (entry type, start/end precision, media kind) hard-code literals — build from `ENTRY_TYPES`/`PRECISIONS`/`MEDIA_KINDS` via `sql.raw`, confirm `drizzle-kit generate` output is equivalent (no-op or harmless rebuild migration).
+- [done] F1 (B3 design W): `src/lib/server/db/schema.ts` CHECK constraints (entry type, start/end precision, media kind) hard-code literals — build from `ENTRY_TYPES`/`PRECISIONS`/`MEDIA_KINDS` via `sql.raw`, confirm `drizzle-kit generate` output is equivalent (no-op or harmless rebuild migration).
 - [done] F2 (B3 N, resolveInitialFields kept: exported + tested): drop unused `export type { MediaKind }` re-export in `src/lib/server/media/validate.ts`; inline `resolveInitialFields` in FuzzyDateInput.
-- F3 (B3 media): no explicit test for >50 MP HEIC rejection (no HEIC encoder available to build fixture) — add one via synthetic fixture or metadata stub.
+- [done] F3 (B3 media): no explicit test for >50 MP HEIC rejection (no HEIC encoder available to build fixture) — add one via synthetic fixture or metadata stub.
 - [done] F4 (B3 bug W, do with T19): `src/lib/server/media/images.ts` `isDecodeError` maps libvips WRITE failures (ENOSPC comes back without `err.code`, message "No space left on device") to `MediaError('Image illisible.')` → T19 cannot return 507 (EC-12). Fix: decode source first (`clone().toBuffer()`/`metadata()`) inside the MediaError mapping, write files outside it; or detect `/No space left on device/`.
-- F5 (B4 test W): `src/lib/server/timeline/query.test.ts` NFR-2 perf test uses a real wall-clock <300ms budget — widen margin or gate separately if it flakes on the Pi/CI.
+- [done] F5 (B4 test W): `src/lib/server/timeline/query.test.ts` NFR-2 perf test uses a real wall-clock <300ms budget — widen margin or gate separately if it flakes on the Pi/CI.
 - [done] F6 (B4 design W): `src/lib/server/entries/occurrences.ts` `ensureOccurrenceNote` near-duplicates `upsertOccurrenceNote` — merge into one fn with optional `note` (omitted = leave note untouched); update T19/T30 callers accordingly.
 - [done] F7 (B4 bug N): `src/lib/server/entries/service.ts` journal-link 366-day cap keeps the oldest days of a long open phase — consider keeping the most recent 366 instead.
 - [done] F8 (B5 T31/T32, B6 T24): `src/lib/components/timeline/TimelineCard.svelte` + `HorizontalTimeline.svelte` + `src/lib/components/AppNav.svelte` (5 nav links) + `src/routes/journal/calendrier/+page.svelte` + `src/routes/ce-jour-la/+page.svelte` (B7) use `eslint-disable-next-line svelte/no-navigation-without-resolve` for `/entries/...` links because T29/T30 routes did not exist yet — switch to `resolve()` and drop the disable once they land (do with T29/T30).
