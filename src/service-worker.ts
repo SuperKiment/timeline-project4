@@ -14,6 +14,9 @@ const CACHE_NAME = `${CACHE_PREFIX}${version}`;
 // private data and always go to the network.
 const ASSETS = new Set<string>([...build, ...files]);
 
+/** Self-contained page from `static/`, hence precached with the assets above. */
+const OFFLINE_PAGE = '/offline.html';
+
 sw.addEventListener('install', (event) => {
 	event.waitUntil(
 		caches
@@ -43,12 +46,26 @@ sw.addEventListener('fetch', (event) => {
 	if (request.method !== 'GET') return;
 
 	const url = new URL(request.url);
-	if (url.origin !== sw.location.origin || !ASSETS.has(url.pathname)) return;
+	if (url.origin !== sw.location.origin) return;
 
-	event.respondWith(
-		caches.open(CACHE_NAME).then(async (cache) => {
-			const cached = await cache.match(url.pathname);
-			return cached ?? fetch(request);
-		})
-	);
+	if (ASSETS.has(url.pathname)) {
+		event.respondWith(
+			caches.open(CACHE_NAME).then(async (cache) => {
+				const cached = await cache.match(url.pathname);
+				return cached ?? fetch(request);
+			})
+		);
+	} else if (request.mode === 'navigate' && !isApiOrMedia(url.pathname)) {
+		// Pages stay network-only; when the server can't be reached, show the generic offline page.
+		event.respondWith(
+			fetch(request).catch(
+				async () =>
+					(await caches.match(OFFLINE_PAGE, { cacheName: CACHE_NAME })) ?? Response.error()
+			)
+		);
+	}
 });
+
+function isApiOrMedia(pathname: string): boolean {
+	return pathname.startsWith('/api/') || pathname.startsWith('/media/');
+}

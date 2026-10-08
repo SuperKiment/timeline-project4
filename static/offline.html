@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#edf0f5" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1015" />
+		<title>Hors ligne — Notre timeline</title>
+		<!-- Served by the service worker when a page can't reach the server: no external resources. -->
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg-base: #edf0f5;
+				--light-a: rgb(245 166 35 / 0.32);
+				--light-b: rgb(20 184 166 / 0.28);
+				--color-text: #171a21;
+				--color-text-muted: #596070;
+				--color-accent: #1f5eff;
+				--color-accent-contrast: #ffffff;
+				--surface: rgb(255 255 255 / 0.72);
+				--glass-border: rgb(255 255 255 / 0.7);
+				--shadow-pane: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px rgb(15 23 42 / 0.05);
+			}
+
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg-base: #0d1015;
+					--light-a: rgb(217 119 6 / 0.2);
+					--light-b: rgb(13 148 136 / 0.2);
+					--color-text: #eceff4;
+					--color-text-muted: #9aa3b2;
+					--color-accent: #7fa6ff;
+					--color-accent-contrast: #0d1015;
+					--surface: rgb(255 255 255 / 0.06);
+					--glass-border: rgb(255 255 255 / 0.1);
+					--shadow-pane: 0 1px 2px rgb(0 0 0 / 0.3);
+				}
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				display: grid;
+				place-items: center;
+				min-height: 100vh;
+				margin: 0;
+				padding: 16px;
+				background: var(--bg-base);
+				color: var(--color-text);
+				font-family:
+					-apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, 'Segoe UI', system-ui,
+					sans-serif;
+				font-size: 1.0625rem;
+				line-height: 1.5;
+				-webkit-font-smoothing: antialiased;
+			}
+
+			body::before {
+				content: '';
+				position: fixed;
+				inset: 0;
+				z-index: -1;
+				background:
+					radial-gradient(circle at 0% 0%, var(--light-a) 0, transparent 60vmax),
+					radial-gradient(circle at 100% 100%, var(--light-b) 0, transparent 60vmax);
+			}
+
+			main {
+				width: 100%;
+				max-width: 420px;
+				padding: 1.25rem;
+				background: var(--surface);
+				border: 1px solid var(--glass-border);
+				border-radius: 20px;
+				box-shadow: var(--shadow-pane);
+			}
+
+			h1 {
+				margin: 0 0 0.5rem;
+				font-family: 'Newsreader Variable', Newsreader, Georgia, serif;
+				font-size: 2.25rem;
+				font-weight: 600;
+				line-height: 1.1;
+				letter-spacing: -0.01em;
+			}
+
+			p {
+				margin: 0 0 1.25rem;
+				color: var(--color-text-muted);
+			}
+
+			button {
+				min-height: 44px;
+				padding: 0 1.125rem;
+				border: none;
+				border-radius: 999px;
+				background: var(--color-accent);
+				color: var(--color-accent-contrast);
+				font: inherit;
+				font-size: 1rem;
+				font-weight: 600;
+				cursor: pointer;
+			}
+
+			button:focus-visible {
+				outline: 2px solid var(--color-accent);
+				outline-offset: 2px;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<h1>Hors ligne</h1>
+			<p>Le serveur de Notre timeline est injoignable. Vérifiez la connexion, puis réessayez.</p>
+			<button type="button" onclick="location.reload()">Réessayer</button>
+		</main>
+	</body>
+</html>
