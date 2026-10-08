@@ -55,7 +55,7 @@ everything else quiet.
 | `--blur-nav` (nav bar) | `blur(16px)` | same |
 | `--radius-sm/md/lg/xl/pill` | `10px / 14px / 20px / 28px / 999px` | same |
 | `--font-sans` | `-apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, 'Segoe UI', system-ui, sans-serif` | |
-| `--font-serif` | `'Newsreader Variable', Newsreader, Georgia, serif` | |
+| `--font-serif` | `'Newsreader Variable', Newsreader, 'Newsreader Fallback', Georgia, serif` | |
 
 Legacy aliases kept so existing components keep working: `--color-bg` = `--bg-base`,
 `--color-surface` = `--surface`.
@@ -63,6 +63,11 @@ Legacy aliases kept so existing components keep working: `--color-bg` = `--bg-ba
 Fallbacks: under `@media (prefers-reduced-transparency: reduce)` and
 `@supports not (backdrop-filter: blur(1px))`, `--glass-bg`/`--glass-bg-dense`/`--surface`
 become opaque (`#f7f8fa` light / `#1a1e26` dark) and `--blur`/`--blur-nav` are dropped.
+
+Fonts: the root layout preloads Newsreader's Latin woff2 (the same hashed asset the
+`@font-face` uses). `'Newsreader Fallback'` is local Georgia with
+`size-adjust`/`ascent-override`/`descent-override` matched to Newsreader, so the swap
+barely shifts layout.
 
 ## Type scale
 

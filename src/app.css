@@ -34,7 +34,7 @@
 
 	--font-sans:
 		-apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, 'Segoe UI', system-ui, sans-serif;
-	--font-serif: 'Newsreader Variable', Newsreader, Georgia, serif;
+	--font-serif: 'Newsreader Variable', Newsreader, 'Newsreader Fallback', Georgia, serif;
 
 	/* Legacy aliases */
 	--color-bg: var(--bg-base);
@@ -104,6 +104,32 @@
 			--surface: #1a1e26;
 		}
 	}
+}
+
+/*
+ * Georgia scaled to Newsreader's metrics so the swap to the web font barely
+ * moves text (capsize formula: size-adjust = avg x-width ratio, overrides =
+ * Newsreader's 1470/530 per 2000 upm ascent/descent / size-adjust). The bold
+ * face pairs Newsreader 600 (titles) with Georgia Bold.
+ */
+@font-face {
+	font-family: 'Newsreader Fallback';
+	font-weight: 400;
+	src: local('Georgia');
+	size-adjust: 96.12%;
+	ascent-override: 76.47%;
+	descent-override: 27.57%;
+	line-gap-override: 0%;
+}
+
+@font-face {
+	font-family: 'Newsreader Fallback';
+	font-weight: 700;
+	src: local('Georgia Bold'), local('Georgia-Bold');
+	size-adjust: 86.78%;
+	ascent-override: 84.7%;
+	descent-override: 30.54%;
+	line-gap-override: 0%;
 }
 
 * {
