@@ -112,6 +112,9 @@ export const journalEntries = sqliteTable(
 	(table) => [
 		uniqueIndex('journal_entries_user_day_idx')
 			.on(table.userId, table.day)
+			.where(sql`${table.deletedAt} is null`),
+		index('journal_entries_day_idx')
+			.on(table.day)
 			.where(sql`${table.deletedAt} is null`)
 	]
 );

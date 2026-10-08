@@ -4,8 +4,8 @@
  * memories, recurrent series occurrences, and journal entries.
  */
 
-import { and, eq, inArray, isNull } from 'drizzle-orm';
-import { isValidFuzzy } from '../../dates/fuzzy';
+import { and, eq, inArray, isNull, min, sql } from 'drizzle-orm';
+import { isoDay, isValidFuzzy } from '../../dates/fuzzy';
 import { occurrenceOn, type Frequency } from '../../dates/recurrence';
 import type { EntryType } from '../../timeline/types';
 import type { Db } from '../db';
@@ -65,13 +65,13 @@ export function onThisDay(db: Db, today: string): OnThisDayYear[] {
 			and(
 				isNull(entries.deletedAt),
 				eq(entries.startPrecision, 'day'),
-				inArray(entries.type, ['souvenir', 'important'])
+				inArray(entries.type, ['souvenir', 'important']),
+				sql`substr(${entries.startSort}, 6, 5) = ${todayMonthDay}`
 			)
 		)
 		.all();
 
 	for (const entry of dayEntries) {
-		if (monthDay(entry.startSort) !== todayMonthDay) continue;
 		addItem(Number(entry.startSort.slice(0, 4)), {
 			kind: 'entry',
 			id: entry.id,
@@ -137,7 +137,19 @@ export function onThisDay(db: Db, today: string): OnThisDayYear[] {
 		}
 	}
 
-	// Visible journal entries with the same month/day.
+	// Visible journal entries with the same month/day: looked up as one exact
+	// day per past year since the first entry, so the day index is used
+	// (a non-leap year's 29/02 simply matches nothing).
+	const firstJournalDay = db
+		.select({ day: min(journalEntries.day) })
+		.from(journalEntries)
+		.where(isNull(journalEntries.deletedAt))
+		.get()?.day;
+	const journalDays: string[] = [];
+	const firstYear = firstJournalDay ? Number(firstJournalDay.slice(0, 4)) : currentYear;
+	for (let year = firstYear; year < currentYear; year++) {
+		journalDays.push(isoDay(year, month, day));
+	}
 	const journalRows = db
 		.select({
 			day: journalEntries.day,
@@ -146,11 +158,10 @@ export function onThisDay(db: Db, today: string): OnThisDayYear[] {
 		})
 		.from(journalEntries)
 		.innerJoin(users, eq(journalEntries.userId, users.id))
-		.where(isNull(journalEntries.deletedAt))
+		.where(and(isNull(journalEntries.deletedAt), inArray(journalEntries.day, journalDays)))
 		.all();
 
 	for (const row of journalRows) {
-		if (monthDay(row.day) !== todayMonthDay) continue;
 		addItem(Number(row.day.slice(0, 4)), {
 			kind: 'journal',
 			day: row.day,

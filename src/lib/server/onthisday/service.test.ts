@@ -161,6 +161,19 @@ describe('onThisDay', () => {
 		]);
 	});
 
+	it('finds journal entries in every past year back to the first one, not the current year', () => {
+		const db = createTestDb();
+		const userId = insertUser(db, 'alice');
+		for (const day of ['2019-06-15', '2023-06-15', '2024-02-29', '2026-06-15']) {
+			db.insert(journalEntries)
+				.values({ userId, day, text: day, createdAt: now, updatedAt: now })
+				.run();
+		}
+
+		expect(onThisDay(db, '2026-06-15').map((y) => y.year)).toEqual([2023, 2019]);
+		expect(onThisDay(db, '2028-02-29').map((y) => y.year)).toEqual([2024]);
+	});
+
 	it('truncates long journal excerpts', () => {
 		const db = createTestDb();
 		const userId = insertUser(db, 'bob');
