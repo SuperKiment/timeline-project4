@@ -65,3 +65,20 @@ test('query prefills the form; created entry is editable from its detail page (F
 	await page.goto(`${path}/edit`);
 	await expect(page.getByLabel('Titre')).toHaveValue(updated);
 });
+
+test.describe('without JavaScript', () => {
+	test.use({ javaScriptEnabled: false });
+
+	// Also what a slow phone sends when "Créer" is tapped before hydration.
+	test('the form still creates an entry with its date', async ({ page }) => {
+		const title = uniqueTitle('Sans JS');
+		await page.goto('/entries/new');
+		await page.getByLabel('Titre').fill(title);
+		await fillDate(page, 'Début', { precision: 'Jour', year: '2021', month: '7', day: '14' });
+		await page.getByRole('button', { name: 'Créer' }).click();
+
+		await expect(page).toHaveURL(/\/entries\/\d+$/);
+		await expect(page.getByRole('heading', { name: title })).toBeVisible();
+		await expect(page.getByText('2021')).toBeVisible();
+	});
+});

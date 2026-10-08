@@ -94,8 +94,8 @@
 		border-radius: var(--radius-xl);
 		border: 1px solid var(--glass-border);
 		background: var(--glass-bg);
-		-webkit-backdrop-filter: var(--blur);
-		backdrop-filter: var(--blur);
+		-webkit-backdrop-filter: var(--blur-nav);
+		backdrop-filter: var(--blur-nav);
 		box-shadow: var(--shadow-float);
 	}
 

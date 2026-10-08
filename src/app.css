@@ -15,6 +15,7 @@
 	--author-a: #b45309;
 	--author-b: #0f766e;
 	--glass-bg: rgb(255 255 255 / 0.62);
+	--glass-bg-dense: rgb(247 248 250 / 0.96);
 	--surface: rgb(255 255 255 / 0.72);
 	--surface-strong: rgb(255 255 255 / 0.88);
 	--glass-border: rgb(255 255 255 / 0.7);
@@ -23,6 +24,7 @@
 	--shadow-pane: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px rgb(15 23 42 / 0.05);
 	--shadow-float: 0 10px 40px rgb(15 23 42 / 0.14), inset 0 1px 0 rgb(255 255 255 / 0.6);
 	--blur: saturate(180%) blur(24px);
+	--blur-nav: blur(16px);
 
 	--radius-sm: 10px;
 	--radius-md: 14px;
@@ -32,7 +34,7 @@
 
 	--font-sans:
 		-apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, 'Segoe UI', system-ui, sans-serif;
-	--font-serif: 'Newsreader Variable', Newsreader, Georgia, serif;
+	--font-serif: 'Newsreader Variable', Newsreader, 'Newsreader Fallback', Georgia, serif;
 
 	/* Legacy aliases */
 	--color-bg: var(--bg-base);
@@ -55,6 +57,7 @@
 		--author-a: #f59e0b;
 		--author-b: #2dd4bf;
 		--glass-bg: rgb(24 28 36 / 0.58);
+		--glass-bg-dense: rgb(26 30 38 / 0.96);
 		--surface: rgb(255 255 255 / 0.06);
 		--surface-strong: rgb(255 255 255 / 0.1);
 		--glass-border: rgb(255 255 255 / 0.1);
@@ -69,14 +72,17 @@
 @media (prefers-reduced-transparency: reduce) {
 	:root {
 		--glass-bg: #f7f8fa;
+		--glass-bg-dense: #f7f8fa;
 		--surface: #f7f8fa;
 		--blur: none;
+		--blur-nav: none;
 	}
 }
 
 @media (prefers-reduced-transparency: reduce) and (prefers-color-scheme: dark) {
 	:root {
 		--glass-bg: #1a1e26;
+		--glass-bg-dense: #1a1e26;
 		--surface: #1a1e26;
 	}
 }
@@ -85,16 +91,45 @@
 @supports not (backdrop-filter: blur(1px)) {
 	:root {
 		--glass-bg: #f7f8fa;
+		--glass-bg-dense: #f7f8fa;
 		--surface: #f7f8fa;
 		--blur: none;
+		--blur-nav: none;
 	}
 
 	@media (prefers-color-scheme: dark) {
 		:root {
 			--glass-bg: #1a1e26;
+			--glass-bg-dense: #1a1e26;
 			--surface: #1a1e26;
 		}
 	}
+}
+
+/*
+ * Georgia scaled to Newsreader's metrics so the swap to the web font barely
+ * moves text (capsize formula: size-adjust = avg x-width ratio, overrides =
+ * Newsreader's 1470/530 per 2000 upm ascent/descent / size-adjust). The bold
+ * face pairs Newsreader 600 (titles) with Georgia Bold.
+ */
+@font-face {
+	font-family: 'Newsreader Fallback';
+	font-weight: 400;
+	src: local('Georgia');
+	size-adjust: 96.12%;
+	ascent-override: 76.47%;
+	descent-override: 27.57%;
+	line-gap-override: 0%;
+}
+
+@font-face {
+	font-family: 'Newsreader Fallback';
+	font-weight: 700;
+	src: local('Georgia Bold'), local('Georgia-Bold');
+	size-adjust: 86.78%;
+	ascent-override: 84.7%;
+	descent-override: 30.54%;
+	line-gap-override: 0%;
 }
 
 * {

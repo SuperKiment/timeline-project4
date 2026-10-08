@@ -214,10 +214,14 @@
 		gap: 0.25rem;
 	}
 
+	/* Over a scrolling frise: dense fill, no per-frame backdrop blur. */
 	.zoom-controls button {
 		width: 44px;
 		padding: 0;
 		border-radius: var(--radius-pill);
+		background: var(--glass-bg-dense);
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
 		font-size: 1.25rem;
 		line-height: 1;
 	}

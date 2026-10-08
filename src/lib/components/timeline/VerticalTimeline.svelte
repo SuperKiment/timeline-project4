@@ -119,7 +119,8 @@
 		padding: 0.5rem 0;
 	}
 
-	/* Sticky header floats over content, so it may blur. */
+	/* Sticky over scrolling content: a near-opaque fill instead of a blur that
+	   would be re-rendered on every scroll frame. */
 	.separator {
 		position: sticky;
 		top: env(safe-area-inset-top, 0px);
@@ -127,9 +128,7 @@
 		margin: 0 0 0.5rem;
 		padding: 0.5rem 0.75rem;
 		border-radius: var(--radius-md);
-		background: var(--glass-bg);
-		-webkit-backdrop-filter: var(--blur);
-		backdrop-filter: var(--blur);
+		background: var(--glass-bg-dense);
 		font-family: var(--font-sans);
 		font-size: 0.9375rem;
 		font-weight: 600;
