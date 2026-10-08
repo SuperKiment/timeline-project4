@@ -1,5 +1,7 @@
 <script lang="ts">
 	import '@fontsource-variable/newsreader';
+	// Same file as the Latin @font-face of the import above: Vite emits one hashed asset.
+	import newsreaderLatin from '@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2?url';
 	import '../app.css';
 	import AppNav from '$lib/components/AppNav.svelte';
 	// Side effect: captures `beforeinstallprompt` before any page needs it.
@@ -7,6 +9,10 @@
 
 	let { data, children } = $props();
 </script>
+
+<svelte:head>
+	<link rel="preload" as="font" type="font/woff2" href={newsreaderLatin} crossorigin="anonymous" />
+</svelte:head>
 
 {#if data.user}
 	<AppNav />
