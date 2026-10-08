@@ -70,6 +70,16 @@ describe('createDb', () => {
 		expect(mode.journal_mode).toBe('wal');
 		expect(fs.existsSync(dbPath)).toBe(true);
 	});
+
+	it('applies the performance pragmas', () => {
+		dir = fs.mkdtempSync(path.join(os.tmpdir(), 'timeline-db-test-'));
+		const db = createDb(path.join(dir, 'timeline.sqlite'));
+
+		expect(db.get(sql`PRAGMA synchronous`)).toEqual({ synchronous: 1 });
+		expect(db.get(sql`PRAGMA cache_size`)).toEqual({ cache_size: -16000 });
+		expect(db.get(sql`PRAGMA temp_store`)).toEqual({ temp_store: 2 });
+		expect(db.get(sql`PRAGMA mmap_size`)).toEqual({ mmap_size: 64 * 1024 * 1024 });
+	});
 });
 
 describe('entries_fts sync triggers', () => {

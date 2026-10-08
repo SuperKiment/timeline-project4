@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { getConfig } from '../config';
 import type { Db } from '../db';
 import { sessions, users } from '../db/schema';
@@ -32,15 +32,8 @@ export function createSession(db: Db, userId: number, now = Date.now()): string 
 	return token;
 }
 
-/**
- * Validates a raw session token: returns the associated user, or null if
- * the token is unknown or expired. Implements the sliding expiry by
- * extending `expiresAt` by a full session lifetime whenever less than half
- * of it remains (Conventions: 30-day sliding expiry).
- */
-export function validateSession(db: Db, token: string, now = Date.now()): SessionUser | null {
-	const id = hashToken(token);
-	const row = db
+function prepareSessionLookup(db: Db) {
+	return db
 		.select({
 			expiresAt: sessions.expiresAt,
 			userId: users.id,
@@ -49,8 +42,31 @@ export function validateSession(db: Db, token: string, now = Date.now()): Sessio
 		})
 		.from(sessions)
 		.innerJoin(users, eq(sessions.userId, users.id))
-		.where(eq(sessions.id, id))
-		.get();
+		.where(eq(sessions.id, sql.placeholder('id')))
+		.prepare();
+}
+
+/**
+ * Session lookup prepared once per database: it runs on every request
+ * (thumbnails included), where rebuilding the query each time cost far more
+ * than executing it.
+ */
+const sessionLookups = new WeakMap<Db, ReturnType<typeof prepareSessionLookup>>();
+
+/**
+ * Validates a raw session token: returns the associated user, or null if
+ * the token is unknown or expired. Implements the sliding expiry by
+ * extending `expiresAt` by a full session lifetime whenever less than half
+ * of it remains (Conventions: 30-day sliding expiry).
+ */
+export function validateSession(db: Db, token: string, now = Date.now()): SessionUser | null {
+	const id = hashToken(token);
+	let lookup = sessionLookups.get(db);
+	if (!lookup) {
+		lookup = prepareSessionLookup(db);
+		sessionLookups.set(db, lookup);
+	}
+	const row = lookup.get({ id });
 
 	if (!row || row.expiresAt <= now) return null;
 
