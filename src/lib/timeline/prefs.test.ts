@@ -1,30 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import {
 	defaultView,
-	loadView,
+	initialView,
 	parseTypesParam,
-	saveView,
+	parseView,
 	typesToParam,
+	viewCookie,
 	VIEW_STORAGE_KEY,
 	type ViewStorage
 } from './prefs';
 import { ENTRY_TYPES } from './types';
 
-function fakeStorage(initial: Record<string, string> = {}): ViewStorage & {
-	data: Record<string, string>;
-} {
-	const data = { ...initial };
-	return {
-		data,
-		getItem: (key) => data[key] ?? null,
-		setItem: (key, value) => {
-			data[key] = value;
-		}
-	};
+function fakeStorage(data: Record<string, string> = {}): ViewStorage {
+	return { getItem: (key) => data[key] ?? null };
 }
 
 const wide = () => ({ matches: true });
 const narrow = () => ({ matches: false });
+
+describe('parseView', () => {
+	it('accepts known views only', () => {
+		expect(parseView('vertical')).toBe('vertical');
+		expect(parseView('horizontal')).toBe('horizontal');
+		expect(parseView('grid')).toBeNull();
+		expect(parseView('')).toBeNull();
+		expect(parseView(null)).toBeNull();
+		expect(parseView(undefined)).toBeNull();
+	});
+});
 
 describe('defaultView', () => {
 	it('is horizontal on wide screens, vertical otherwise or without matchMedia', () => {
@@ -34,50 +37,48 @@ describe('defaultView', () => {
 	});
 });
 
-describe('loadView / saveView', () => {
+describe('initialView', () => {
 	it('falls back to the default when nothing is stored', () => {
-		expect(loadView(() => fakeStorage(), wide)).toBe('horizontal');
-		expect(loadView(() => fakeStorage(), narrow)).toBe('vertical');
+		expect(initialView(() => fakeStorage(), wide)).toBe('horizontal');
+		expect(initialView(() => fakeStorage(), narrow)).toBe('vertical');
 	});
 
-	it('stored choice wins over the default', () => {
-		expect(loadView(() => fakeStorage({ [VIEW_STORAGE_KEY]: 'vertical' }), wide)).toBe('vertical');
-		expect(loadView(() => fakeStorage({ [VIEW_STORAGE_KEY]: 'horizontal' }), narrow)).toBe(
+	it('migrates a stored choice, which wins over the default', () => {
+		expect(initialView(() => fakeStorage({ [VIEW_STORAGE_KEY]: 'vertical' }), wide)).toBe(
+			'vertical'
+		);
+		expect(initialView(() => fakeStorage({ [VIEW_STORAGE_KEY]: 'horizontal' }), narrow)).toBe(
 			'horizontal'
 		);
 	});
 
 	it('ignores unknown stored values', () => {
-		expect(loadView(() => fakeStorage({ [VIEW_STORAGE_KEY]: 'grid' }), narrow)).toBe('vertical');
+		expect(initialView(() => fakeStorage({ [VIEW_STORAGE_KEY]: 'grid' }), narrow)).toBe('vertical');
 	});
 
 	it('survives a throwing storage', () => {
 		const broken: ViewStorage = {
 			getItem: () => {
 				throw new Error('denied');
-			},
-			setItem: () => {
-				throw new Error('denied');
 			}
 		};
-		expect(loadView(() => broken, wide)).toBe('horizontal');
-		expect(() => saveView('vertical', () => broken)).not.toThrow();
+		expect(initialView(() => broken, wide)).toBe('horizontal');
 	});
 
 	it('survives a storage accessor that throws (blocked storage)', () => {
 		const blocked = () => {
 			throw new DOMException('denied', 'SecurityError');
 		};
-		expect(loadView(blocked, wide)).toBe('horizontal');
-		expect(loadView(blocked, narrow)).toBe('vertical');
-		expect(() => saveView('vertical', blocked)).not.toThrow();
+		expect(initialView(blocked, wide)).toBe('horizontal');
+		expect(initialView(blocked, narrow)).toBe('vertical');
 	});
+});
 
-	it('round-trips through storage', () => {
-		const storage = fakeStorage();
-		saveView('horizontal', () => storage);
-		expect(storage.data[VIEW_STORAGE_KEY]).toBe('horizontal');
-		expect(loadView(() => storage, narrow)).toBe('horizontal');
+describe('viewCookie', () => {
+	it('persists the view site-wide for a year', () => {
+		expect(viewCookie('horizontal')).toBe(
+			'timeline_view=horizontal; Path=/; Max-Age=31536000; SameSite=Lax'
+		);
 	});
 });
 

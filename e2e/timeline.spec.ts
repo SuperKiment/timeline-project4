@@ -164,6 +164,35 @@ test('hiding the histoire filter removes histoire items (FR-11)', async ({ page 
 		'aria-pressed',
 		'false'
 	);
+	// The page is server-rendered: wait for hydration (view toggle enabled) before clicking.
+	await expect(page.getByRole('button', { name: 'Vertical', exact: true })).toBeEnabled();
 	await page.getByRole('button', { name: 'Histoire', exact: true }).click();
 	await expect(page.locator('a.card h3', { hasText: prefix })).toHaveCount(5);
+});
+
+test('the server renders the timeline in the saved view, without JavaScript', async ({
+	browser,
+	baseURL
+}) => {
+	const context = await browser.newContext({
+		storageState: ALICE_STATE,
+		baseURL,
+		javaScriptEnabled: false
+	});
+	const page = await context.newPage();
+	const vertical = page.getByRole('button', { name: 'Vertical', exact: true });
+	const horizontal = page.getByRole('button', { name: 'Horizontal', exact: true });
+
+	// No view cookie yet: the mobile-first vertical view, cards included.
+	await context.clearCookies({ name: 'timeline_view' });
+	await page.goto('/');
+	await expect(vertical).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.locator('a.card h3', { hasText: prefix })).toHaveCount(5);
+
+	await context.addCookies([{ name: 'timeline_view', value: 'horizontal', url: baseURL }]);
+	await page.reload();
+	await expect(horizontal).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByRole('button', { name: 'Zoomer', exact: true })).toBeVisible();
+	await expect(page.locator('a.card')).toHaveCount(0);
+	await context.close();
 });

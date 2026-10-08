@@ -1,7 +1,11 @@
 <script lang="ts">
 	import type { TimelineView } from '../../timeline/prefs';
 
-	let { view, onchange }: { view: TimelineView; onchange: (view: TimelineView) => void } = $props();
+	let {
+		view,
+		disabled = false,
+		onchange
+	}: { view: TimelineView; disabled?: boolean; onchange: (view: TimelineView) => void } = $props();
 
 	const OPTIONS: { value: TimelineView; label: string }[] = [
 		{ value: 'vertical', label: 'Vertical' },
@@ -14,6 +18,7 @@
 		<button
 			type="button"
 			aria-pressed={view === option.value}
+			aria-disabled={disabled}
 			onclick={() => onchange(option.value)}
 		>
 			{option.label}
