@@ -8,6 +8,7 @@
 		phaseLanes,
 		MIN_PX_PER_DAY
 	} from '../../timeline/scale';
+	import { diffDays } from '../../dates/fuzzy';
 	import { formatItemDateRange, itemHref } from '../../timeline/layout';
 	import type { TimelineItem } from '../../timeline/types';
 
@@ -51,17 +52,39 @@
 	const lanedPhases = $derived(phaseLanes(phaseItems, today));
 	const phaseLaneCount = $derived(Math.max(1, ...lanedPhases.map((laned) => laned.lane + 1)));
 
+	interface Placed {
+		item: TimelineItem;
+		/** First and last day of the item's range, in days since `bounds.min`. */
+		from: number;
+		to: number;
+	}
+
+	// Ranges are parsed once per items change; zooming and scrolling then only
+	// multiply these offsets (`scale.x()` would re-parse the dates every time).
+	function place(item: TimelineItem): Placed {
+		const [from, to] = itemRange(item, today);
+		return { item, from: diffDays(bounds.min, from), to: diffDays(bounds.min, to) };
+	}
+
+	const placedMain = $derived(mainItems.map(place));
+	const placedHistoire = $derived(histoireItems.map(place));
+	const placedPhases = $derived(lanedPhases.map(({ item, lane }) => ({ ...place(item), lane })));
+
+	/** Same as `scale.x()` for a day offset from `place()`. */
+	function px(days: number): number {
+		return days * scale.pxPerDay;
+	}
+
 	const viewStart = $derived(scrollLeft - DAY_BUFFER * scale.pxPerDay);
 	const viewEnd = $derived(scrollLeft + viewportWidth + DAY_BUFFER * scale.pxPerDay);
 
-	function inView(item: TimelineItem): boolean {
-		const [from, to] = itemRange(item, today);
-		return scale.x(to) >= viewStart && scale.x(from) <= viewEnd;
+	function inView({ from, to }: Placed): boolean {
+		return px(to) >= viewStart && px(from) <= viewEnd;
 	}
 
-	const visibleMain = $derived(mainItems.filter(inView));
-	const visibleHistoire = $derived(histoireItems.filter(inView));
-	const visiblePhases = $derived(lanedPhases.filter((laned) => inView(laned.item)));
+	const visibleMain = $derived(placedMain.filter(inView));
+	const visibleHistoire = $derived(placedHistoire.filter(inView));
+	const visiblePhases = $derived(placedPhases.filter(inView));
 
 	async function zoomBy(factor: number) {
 		const previous = pxPerDay;
@@ -82,8 +105,15 @@
 		zoomBy(Math.exp(-event.deltaY * WHEEL_ZOOM_COEFFICIENT));
 	}
 
+	// At most one viewport update per frame, however many scroll events fire.
+	let scrollFrame = 0;
+
 	function handleScroll() {
-		if (scrollEl) scrollLeft = scrollEl.scrollLeft;
+		if (scrollFrame) return;
+		scrollFrame = requestAnimationFrame(() => {
+			scrollFrame = 0;
+			if (scrollEl) scrollLeft = scrollEl.scrollLeft;
+		});
 	}
 
 	function itemLabel(item: TimelineItem): string {
@@ -101,6 +131,7 @@
 			scrollEl.scrollLeft = Math.max(0, todayX - width / 2);
 			scrollLeft = scrollEl.scrollLeft;
 		});
+		return () => cancelAnimationFrame(scrollFrame);
 	});
 </script>
 
@@ -141,33 +172,29 @@
 			</div>
 
 			<div class="track phase-track" style="height: {phaseLaneCount * LANE_HEIGHT}px;">
-				{#each visiblePhases as laned (laned.item.key)}
-					{@const [from, to] = itemRange(laned.item, today)}
+				{#each visiblePhases as { item, lane, from, to } (item.key)}
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- itemHref() already returns a resolve()d path -->
 					<a
-						href={itemHref(laned.item)}
+						href={itemHref(item)}
 						class="phase-band"
-						style="left: {scale.x(from)}px; width: {Math.max(
-							4,
-							scale.x(to) - scale.x(from)
-						)}px; top: {laned.lane * LANE_HEIGHT}px; height: {LANE_HEIGHT}px;"
-						aria-label={itemLabel(laned.item)}
+						style="left: {px(from)}px; width: {Math.max(4, px(to) - px(from))}px; top: {lane *
+							LANE_HEIGHT}px; height: {LANE_HEIGHT}px;"
+						aria-label={itemLabel(item)}
 					>
-						<span class="phase-title">{laned.item.title}</span>
+						<span class="phase-title">{item.title}</span>
 					</a>
 					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				{/each}
 			</div>
 
 			<div class="track main-track">
-				{#each visibleMain as item (item.key)}
-					{@const [from, to] = itemRange(item, today)}
+				{#each visibleMain as { item, from, to } (item.key)}
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- itemHref() already returns a resolve()d path -->
 					<a
 						href={itemHref(item)}
 						class="marker"
 						class:important={item.type === 'important'}
-						style="left: {scale.x(from)}px; width: {Math.max(2, scale.x(to) - scale.x(from))}px;"
+						style="left: {px(from)}px; width: {Math.max(2, px(to) - px(from))}px;"
 						aria-label={itemLabel(item)}
 					>
 						<span class="marker-dot"></span>
@@ -178,13 +205,12 @@
 			</div>
 
 			<div class="track histoire-track">
-				{#each visibleHistoire as item (item.key)}
-					{@const [from, to] = itemRange(item, today)}
+				{#each visibleHistoire as { item, from, to } (item.key)}
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- itemHref() already returns a resolve()d path -->
 					<a
 						href={itemHref(item)}
 						class="marker histoire"
-						style="left: {scale.x(from)}px; width: {Math.max(2, scale.x(to) - scale.x(from))}px;"
+						style="left: {px(from)}px; width: {Math.max(2, px(to) - px(from))}px;"
 						aria-label={itemLabel(item)}
 					>
 						<span class="marker-dot"></span>
