@@ -17,6 +17,8 @@ export default defineConfig({
 			TZ: 'Europe/Paris',
 			BODY_SIZE_LIMIT: 'Infinity'
 		},
+		// Covers build + seed + boot on a cold CI runner (default is 60s).
+		timeout: 180_000,
 		reuseExistingServer: !process.env.CI
 	},
 	projects: [
