@@ -37,4 +37,15 @@ test('uploads photos and a video on an entry and serves ranges (FR-24)', async (
 	});
 	expect(ranged.status()).toBe(206);
 	expect((await ranged.body()).length).toBe(100);
+
+	// The viewer loads the WebP display variant, not the original.
+	await gallery.getByRole('button', { name: 'Agrandir la photo' }).first().click();
+	const viewed = page.locator('dialog.viewer img');
+	await expect(viewed).toHaveAttribute('src', `/media/${id}/display`);
+	await expect
+		.poll(() => viewed.evaluate((el: HTMLImageElement) => (el.complete ? el.naturalWidth : 0)))
+		.toBeGreaterThan(0);
+	expect(await viewed.evaluate((el: HTMLImageElement) => el.currentSrc)).toMatch(
+		/\/media\/\d+\/(display|thumb)$/
+	);
 });

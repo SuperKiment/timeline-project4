@@ -7,7 +7,7 @@ function isVariant(value: string): value is Variant {
 }
 
 /**
- * Serves a media file (`original`, `thumb` or `poster`). Authentication is
+ * Serves a media file (one of `VARIANTS`, e.g. `original`, `display`, `thumb`). Authentication is
  * enforced by the hooks guard (T9: unauthenticated `/media/*` -> 401); here
  * we only resolve visibility of the requested row (see `serveMedia`).
  */

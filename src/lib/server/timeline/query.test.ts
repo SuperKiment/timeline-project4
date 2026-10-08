@@ -209,7 +209,7 @@ describe('getTimeline', () => {
 
 		const result = getTimeline(db, { types: ['souvenir'], today: '2025-01-01' });
 
-		expect(result[0].thumbUrl).toBe(`/media/${firstPhotoId}/thumb`);
+		expect(result[0].thumbUrl).toBe(`/media/${firstPhotoId}/thumb-sm`);
 	});
 
 	it('has no thumbUrl when an entry has no visible photo', () => {
@@ -247,7 +247,7 @@ describe('getTimeline', () => {
 
 		expect(result).toHaveLength(1);
 		expect(result[0].hasNote).toBe(true);
-		expect(result[0].thumbUrl).toBe(`/media/${photoId}/thumb`);
+		expect(result[0].thumbUrl).toBe(`/media/${photoId}/thumb-sm`);
 	});
 
 	it('does not report hasNote for an occurrence whose note is empty or absent', () => {

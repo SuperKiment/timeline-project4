@@ -60,6 +60,8 @@ function addMedia(
 			thumbName: kind === 'photo' ? 't' : null,
 			posterName: opts.poster ? 'p' : null,
 			size: 1,
+			width: kind === 'photo' ? 4032 : null,
+			height: kind === 'photo' ? 3024 : null,
 			originalName: 'o',
 			createdAt: opts.createdAt ?? NOW,
 			deletedAt: opts.deletedAt ?? null
@@ -155,18 +157,39 @@ describe('listMediaByOwner', () => {
 				id: photo,
 				kind: 'photo',
 				thumbUrl: `/media/${photo}/thumb`,
-				url: `/media/${photo}/original`
+				displayUrl: `/media/${photo}/display`,
+				url: `/media/${photo}/original`,
+				width: 4032,
+				height: 3024
 			},
 			{
 				id: withPoster,
 				kind: 'video',
 				thumbUrl: `/media/${withPoster}/poster`,
-				url: `/media/${withPoster}/original`
+				displayUrl: `/media/${withPoster}/original`,
+				url: `/media/${withPoster}/original`,
+				width: null,
+				height: null
 			},
-			{ id: bare, kind: 'video', thumbUrl: '', url: `/media/${bare}/original` }
+			{
+				id: bare,
+				kind: 'video',
+				thumbUrl: '',
+				displayUrl: `/media/${bare}/original`,
+				url: `/media/${bare}/original`,
+				width: null,
+				height: null
+			}
 		]);
-		expect(toMediaItem({ id: 1, kind: 'photo', thumbName: 't', posterName: null }).thumbUrl).toBe(
-			'/media/1/thumb'
-		);
+		expect(
+			toMediaItem({
+				id: 1,
+				kind: 'photo',
+				thumbName: 't',
+				posterName: null,
+				width: null,
+				height: null
+			}).thumbUrl
+		).toBe('/media/1/thumb');
 	});
 });

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import type { MediaItem } from '$lib/media/types';
+	import { viewerSrcset } from '$lib/media/variants';
 	import { extractErrorMessage, loginRedirectUrl } from '$lib/media/upload-client';
 	import ConfirmButton from './ConfirmButton.svelte';
 
@@ -57,13 +58,20 @@
 						aria-label="Agrandir la photo"
 						onclick={() => openPhoto(item)}
 					>
-						<img src={item.thumbUrl} alt="" loading="lazy" />
+						<img
+							src={item.thumbUrl}
+							alt=""
+							loading="lazy"
+							decoding="async"
+							width={item.width}
+							height={item.height}
+						/>
 					</button>
 				{:else}
 					<!-- svelte-ignore a11y_media_has_caption -->
 					<video
 						controls
-						preload="metadata"
+						preload="none"
 						poster={item.thumbUrl || undefined}
 						src={item.url}
 						class:noposter={!item.thumbUrl}
@@ -87,7 +95,17 @@
 
 <dialog bind:this={viewer} class="viewer glass" aria-label="Photo" onclose={() => (viewed = null)}>
 	{#if viewed}
-		<img src={viewed.url} alt="" />
+		{@const ratio = viewed.width && viewed.height ? viewed.width / viewed.height : null}
+		<img
+			src={viewed.displayUrl}
+			srcset={viewerSrcset(viewed)}
+			sizes="min(95vw, 1100px)"
+			alt=""
+			width={viewed.width}
+			height={viewed.height}
+			class:sized={ratio}
+			style:--ratio={ratio}
+		/>
 	{/if}
 	<button type="button" class="glass close" onclick={() => viewer?.close()}>Fermer</button>
 </dialog>
@@ -162,18 +180,24 @@
 		color: var(--color-text);
 	}
 
+	/* No blur: a full-screen photo hides the page anyway, and blurring it is costly on phones. */
 	.viewer::backdrop {
-		background: rgb(0 0 0 / 0.6);
-		-webkit-backdrop-filter: blur(12px);
-		backdrop-filter: blur(12px);
+		background: rgb(10 12 16 / 0.82);
 	}
 
 	.viewer img {
 		width: auto;
+		height: auto;
 		max-width: 100%;
 		max-height: 80vh;
 		border-radius: var(--radius-md);
 		object-fit: contain;
+	}
+
+	/* Known dimensions: reserve the final box before the photo loads (no reflow). */
+	.viewer img.sized {
+		width: min(calc(min(95vw, 1100px) - 1.5rem - 2px), calc(80vh * var(--ratio)));
+		aspect-ratio: var(--ratio);
 	}
 
 	.viewer .close {

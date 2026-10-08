@@ -10,5 +10,11 @@ export interface MediaItem {
 	kind: 'photo' | 'video';
 	/** Thumbnail/poster URL; empty for videos without a poster. */
 	thumbUrl: string;
+	/** Full-screen URL: the `display` variant for photos, the original file for videos. */
+	displayUrl: string;
+	/** Original file (download/export). */
 	url: string;
+	/** Dimensions of the stored original (`null` for videos). */
+	width: number | null;
+	height: number | null;
 }

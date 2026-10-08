@@ -9,6 +9,22 @@ export function newStoredName(ext: string): string {
 	return `${randomBytes(16).toString('hex')}.${cleanExt}`;
 }
 
+/** Photo variants not tracked in the `media` table (see {@link derivedName}). */
+export const DERIVED_VARIANTS = ['display', 'thumb-sm'] as const;
+export type DerivedVariant = (typeof DERIVED_VARIANTS)[number];
+
+/**
+ * File name of a derived photo variant. These have no DB column: the name is
+ * derived from the original's stored name, `<stem>.<ext>` →
+ * `<stem>-display.webp` / `<stem>-thumb-sm.webp` (e.g. `ab12….jpg` →
+ * `ab12…-display.webp`). Media stored before they existed may lack them on
+ * disk until `npm run media:backfill` runs; serving falls back to a larger
+ * variant meanwhile.
+ */
+export function derivedName(storedName: string, variant: DerivedVariant): string {
+	return `${storedName.replace(/\.[^.]*$/, '')}-${variant}.webp`;
+}
+
 /**
  * Resolves a stored media file name to an absolute path inside `mediaDir`,
  * refusing anything that would escape it (path traversal, NFR-4).
@@ -36,11 +52,17 @@ export interface StoredMediaFiles {
 	posterName?: string | null;
 }
 
-/** Deletes a media row's files from disk, silently ignoring files already gone. */
+/**
+ * Deletes a media row's files from disk (including its derived variants),
+ * silently ignoring files already gone.
+ */
 export async function removeMediaFiles(files: StoredMediaFiles): Promise<void> {
-	const names = [files.storedName, files.thumbName, files.posterName].filter(
-		(name): name is string => !!name
-	);
+	const names = [
+		files.storedName,
+		files.thumbName,
+		files.posterName,
+		...DERIVED_VARIANTS.map((variant) => derivedName(files.storedName, variant))
+	].filter((name): name is string => !!name);
 	await Promise.all(
 		names.map(async (name) => {
 			try {
