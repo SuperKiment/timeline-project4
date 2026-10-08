@@ -85,8 +85,8 @@
 <style>
 	.app-nav {
 		position: fixed;
-		left: 12px;
-		right: 12px;
+		left: calc(12px + env(safe-area-inset-left, 0px));
+		right: calc(12px + env(safe-area-inset-right, 0px));
 		bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 		z-index: 50;
 		height: 64px;
@@ -158,7 +158,7 @@
 	@media (min-width: 1024px) {
 		.app-nav {
 			position: sticky;
-			top: 12px;
+			top: calc(12px + env(safe-area-inset-top, 0px));
 			left: auto;
 			right: auto;
 			bottom: auto;

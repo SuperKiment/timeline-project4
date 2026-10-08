@@ -4,6 +4,8 @@
 	import newsreaderLatin from '@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2?url';
 	import '../app.css';
 	import AppNav from '$lib/components/AppNav.svelte';
+	// Side effect: captures `beforeinstallprompt` before any page needs it.
+	import '$lib/pwa/install-prompt.svelte';
 
 	let { data, children } = $props();
 </script>
