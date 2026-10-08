@@ -8,9 +8,13 @@ everything else quiet.
 
 ## Principles
 
-1. **Blur only what floats.** `backdrop-filter` only on floating chrome: nav bar,
-   FAB, dialogs/lightbox, sticky headers. Content panes and cards use a frosted
-   _fill_ (translucent background + light border), no blur — keeps long lists cheap.
+1. **Blur only what floats, and only where it pays.** `backdrop-filter` is re-run on
+   every scroll frame for anything over moving content, so: nav bar → light
+   `--blur-nav`; dialog/login sheets → `--blur` (static, shown briefly); sticky
+   headers and small controls over scrolling content (zoom buttons) → near-opaque
+   `--glass-bg-dense`, no blur; dialog `::backdrop` → dim only, no blur. Content
+   panes and cards use a frosted _fill_ (translucent background + light border), no
+   blur — keeps long lists cheap.
 2. **Radius follows hierarchy.** Small things inside cards `--radius-sm`, controls
    `--radius-md`, cards/panes `--radius-lg`, floating sheets/nav `--radius-xl`,
    buttons/chips/toggles `--radius-pill`. Never one radius everywhere.
@@ -39,6 +43,7 @@ everything else quiet.
 | `--author-a` | `#b45309` | `#f59e0b` |
 | `--author-b` | `#0f766e` | `#2dd4bf` |
 | `--glass-bg` (floating chrome) | `rgb(255 255 255 / 0.62)` | `rgb(24 28 36 / 0.58)` |
+| `--glass-bg-dense` (sticky headers, controls over scrolling content; no blur) | `rgb(247 248 250 / 0.96)` | `rgb(26 30 38 / 0.96)` |
 | `--surface` (= `--color-surface`, panes/cards) | `rgb(255 255 255 / 0.72)` | `rgb(255 255 255 / 0.06)` |
 | `--surface-strong` (inputs, secondary buttons) | `rgb(255 255 255 / 0.88)` | `rgb(255 255 255 / 0.10)` |
 | `--glass-border` (pane edge highlight) | `rgb(255 255 255 / 0.70)` | `rgb(255 255 255 / 0.10)` |
@@ -46,7 +51,8 @@ everything else quiet.
 | `--hairline` (dividers) | `rgb(23 26 33 / 0.08)` | `rgb(255 255 255 / 0.08)` |
 | `--shadow-pane` | `0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px rgb(15 23 42 / 0.05)` | `0 1px 2px rgb(0 0 0 / 0.3)` |
 | `--shadow-float` | `0 10px 40px rgb(15 23 42 / 0.14), inset 0 1px 0 rgb(255 255 255 / 0.6)` | `0 10px 40px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.06)` |
-| `--blur` | `saturate(180%) blur(24px)` | same |
+| `--blur` (sheets: dialogs, login) | `saturate(180%) blur(24px)` | same |
+| `--blur-nav` (nav bar) | `blur(16px)` | same |
 | `--radius-sm/md/lg/xl/pill` | `10px / 14px / 20px / 28px / 999px` | same |
 | `--font-sans` | `-apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, 'Segoe UI', system-ui, sans-serif` | |
 | `--font-serif` | `'Newsreader Variable', Newsreader, Georgia, serif` | |
@@ -55,8 +61,8 @@ Legacy aliases kept so existing components keep working: `--color-bg` = `--bg-ba
 `--color-surface` = `--surface`.
 
 Fallbacks: under `@media (prefers-reduced-transparency: reduce)` and
-`@supports not (backdrop-filter: blur(1px))`, `--glass-bg`/`--surface` become opaque
-(`#f7f8fa` light / `#1a1e26` dark) and blur is dropped.
+`@supports not (backdrop-filter: blur(1px))`, `--glass-bg`/`--glass-bg-dense`/`--surface`
+become opaque (`#f7f8fa` light / `#1a1e26` dark) and `--blur`/`--blur-nav` are dropped.
 
 ## Type scale
 
@@ -93,15 +99,15 @@ serif 600 1.125rem. Journal prose: serif 1.125rem / 1.65. Line length ≤ 70ch.
 ## Components
 
 - **Nav**: mobile → fixed floating capsule, `left/right: 12px`,
-  `bottom: calc(12px + env(safe-area-inset-bottom))`, `--radius-xl`, `.glass`, six
-  items each with a 22px inline SVG icon (`aria-hidden`, stroke 1.75) above a 0.6875rem
-  label; active = accent text + `--color-accent-soft` pill. Desktop (≥1024px) →
+  `bottom: calc(12px + env(safe-area-inset-bottom))`, `--radius-xl`, `.glass` look with
+  `--blur-nav`, six items each with a 22px inline SVG icon (`aria-hidden`, stroke 1.75)
+  above a 0.6875rem label; active = accent text + `--color-accent-soft` pill. Desktop (≥1024px) →
   sticky top capsule centered (`margin: 12px auto 0; width: fit-content`), labels only,
   active = `--surface-strong` filled pill.
 - **FAB « Ajouter »**: `.btn-primary` pill + `--shadow-float`, floats above the mobile
   nav (bottom = nav height + 24px).
 - **Cards** (timeline items, search results, trash rows, occurrence rows): `.pane`
   look with `--radius-lg`; title serif.
-- **Dialogs/lightbox**: backdrop `rgb(0 0 0 / 0.35)` + `backdrop-filter: blur(8px)`;
+- **Dialogs/lightbox**: backdrop `rgb(0 0 0 / 0.35)`, no blur;
   sheet `.glass` `--radius-xl`.
 - **Calendar author markers**: `--author-a` / `--author-b`.

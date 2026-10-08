@@ -109,10 +109,10 @@
 		color: var(--color-text);
 	}
 
+	/* Dim only: a full-viewport blur is the costliest filter, while the small
+	   panel above keeps its glass blur. */
 	.confirm-dialog::backdrop {
 		background: rgb(0 0 0 / 0.35);
-		-webkit-backdrop-filter: blur(8px);
-		backdrop-filter: blur(8px);
 	}
 
 	p {
