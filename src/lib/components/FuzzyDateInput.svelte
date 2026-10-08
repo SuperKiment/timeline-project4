@@ -57,9 +57,9 @@
 	});
 
 	// Keeps the bindable `value` in sync as the parsed structured date, or
-	// `null` while the raw fields are incomplete/invalid. The hidden inputs
+	// `null` while the raw fields are incomplete/invalid. The named fields
 	// below (parsed server-side via `parseFuzzyFormFields`) remain the source
-	// of truth for submission.
+	// of truth for submission, so a form sent before hydration keeps what was typed.
 	$effect(() => {
 		value = fuzzyFormFieldsToValue({ precision, year, month, day });
 	});
@@ -74,7 +74,7 @@
 		<div class="precision-control" role="radiogroup" aria-label="Précision de la date">
 			{#each allowedPrecisions as p (p)}
 				<label class="precision-option" class:selected={precision === p}>
-					<input type="radio" name="{name}-precision-choice" bind:group={precision} value={p} />
+					<input type="radio" name="{name}_precision" bind:group={precision} value={p} />
 					{PRECISION_LABELS[p]}
 				</label>
 			{/each}
@@ -88,6 +88,7 @@
 				type="text"
 				inputmode="numeric"
 				pattern="[0-9]*"
+				name="{name}_year"
 				bind:value={year}
 				{required}
 				aria-label="Année"
@@ -97,7 +98,7 @@
 		{#if precision === 'month' || precision === 'day'}
 			<label class="field">
 				<span>Mois</span>
-				<select bind:value={month} {required} aria-label="Mois">
+				<select name="{name}_month" bind:value={month} {required} aria-label="Mois">
 					<option value="" disabled>—</option>
 					{#each FRENCH_MONTHS as monthName, i (monthName)}
 						<option value={String(i + 1)}>{monthName}</option>
@@ -113,6 +114,7 @@
 					type="text"
 					inputmode="numeric"
 					pattern="[0-9]*"
+					name="{name}_day"
 					bind:value={day}
 					{required}
 					aria-label="Jour"
@@ -121,10 +123,9 @@
 		{/if}
 	</div>
 
-	<input type="hidden" name="{name}_precision" value={precision} />
-	<input type="hidden" name="{name}_year" value={year} />
-	<input type="hidden" name="{name}_month" value={month} />
-	<input type="hidden" name="{name}_day" value={day} />
+	{#if allowedPrecisions.length === 1}
+		<input type="hidden" name="{name}_precision" value={precision} />
+	{/if}
 </fieldset>
 
 <style>
