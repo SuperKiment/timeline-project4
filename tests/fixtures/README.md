@@ -35,7 +35,7 @@ Image.open('source.png').convert('RGB').save(
 )
 ```
 
-Sert à vérifier la conversion HEIC → JPEG (`heic-convert`) dans
+Sert à vérifier la conversion HEIC → JPEG (`heic-decode` dans un worker) dans
 `processPhoto` (EC-10).
 
 ## fake.jpg

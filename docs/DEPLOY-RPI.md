@@ -36,6 +36,7 @@ Notes :
 - Si `npm ci` ou `npm install` échoue avec le npm 9.2 fourni avec certaines versions (bug arborist), utilisez `npx -y npm@11 ci`.
 - Ne lancez jamais `npm audit fix --force`.
 - Pour mettre à jour plus tard : `git pull`, `npm ci`, `npm run build`, `npm prune --omit=dev`, puis `sudo systemctl restart timeline`. Les migrations sont appliquées avec `npm run db:migrate` (voir plus bas) ; faites une sauvegarde avant.
+- Photos envoyées avant l'ajout des variantes `display` (visionneuse) et `thumb-sm` (cartes de la frise) : après la mise à jour, lancez une fois `sudo -u timeline bash -c 'cd /opt/timeline && npm run media:backfill'`. Le script est idempotent (relançable sans risque) ; en attendant, l'application sert la variante plus grande.
 
 ## 3. Configuration
 

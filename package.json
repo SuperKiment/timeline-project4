@@ -19,7 +19,8 @@
 		"db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
 		"user:create": "tsx --env-file-if-exists=.env scripts/user-create.ts",
 		"seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
-		"backup": "tsx --env-file-if-exists=.env scripts/backup.ts"
+		"backup": "tsx --env-file-if-exists=.env scripts/backup.ts",
+		"media:backfill": "tsx --env-file-if-exists=.env scripts/media-backfill.ts"
 	},
 	"engines": {
 		"node": ">=22.9"
@@ -55,7 +56,7 @@
 		"busboy": "^1.6.0",
 		"drizzle-orm": "^0.45.3",
 		"file-type": "^22.1.1",
-		"heic-convert": "^2.1.0",
+		"heic-decode": "^2.1.0",
 		"marked": "^18.0.13",
 		"sanitize-html": "^2.17.7",
 		"sharp": "^0.35.4",

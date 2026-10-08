@@ -121,6 +121,24 @@ describe('storage', () => {
 		).resolves.toBeUndefined();
 		await expect(fs.access(mediaPath('missing.jpg'))).rejects.toThrow();
 	});
+
+	it('derivedName derives variant names from the stored name', async () => {
+		const { derivedName } = await import('./storage');
+		expect(derivedName('ab12.jpg', 'display')).toBe('ab12-display.webp');
+		expect(derivedName('ab12.png', 'thumb-sm')).toBe('ab12-thumb-sm.webp');
+	});
+
+	it('removeMediaFiles also deletes the derived variants', async () => {
+		const { removeMediaFiles, ensureMediaDir, mediaPath } = await import('./storage');
+		const { getConfig } = await import('../config');
+		await ensureMediaDir();
+		const names = ['a.jpg', 't.webp', 'a-display.webp', 'a-thumb-sm.webp'];
+		for (const name of names) await fs.writeFile(mediaPath(name), 'x');
+
+		await removeMediaFiles({ storedName: 'a.jpg', thumbName: 't.webp' });
+
+		expect(await fs.readdir(getConfig().mediaDir)).toEqual([]);
+	});
 });
 
 describe('processPhoto', () => {
@@ -146,6 +164,30 @@ describe('processPhoto', () => {
 		expect(thumbMeta.format).toBe('webp');
 		expect(thumbMeta.width).toBe(40);
 		expect(thumbMeta.height).toBe(60);
+
+		// Derived variants are oriented too, and never enlarged.
+		const { derivedName } = await import('./storage');
+		for (const variant of ['display', 'thumb-sm'] as const) {
+			const meta = await sharp(mediaPath(derivedName(result.storedName, variant))).metadata();
+			expect(meta.format).toBe('webp');
+			expect([meta.width, meta.height]).toEqual([40, 60]);
+		}
+	});
+
+	it('caps the display variant at 2048px and crops thumb-sm to a 168px square', async () => {
+		const { processPhoto } = await import('./images');
+		const { derivedName, mediaPath } = await import('./storage');
+		const source = path.join(dataDir, 'portrait.png');
+		await sharp({ create: { width: 2000, height: 3000, channels: 3, background: '#468' } })
+			.png()
+			.toFile(source);
+
+		const result = await processPhoto(source, PNG_SNIFF);
+
+		const display = await sharp(mediaPath(derivedName(result.storedName, 'display'))).metadata();
+		expect([display.width, display.height]).toEqual([1365, 2048]);
+		const small = await sharp(mediaPath(derivedName(result.storedName, 'thumb-sm'))).metadata();
+		expect([small.width, small.height]).toEqual([168, 168]);
 	});
 
 	it('converts HEIC input to a JPEG original (EC-10 happy path)', async () => {
@@ -161,6 +203,13 @@ describe('processPhoto', () => {
 
 		const originalMeta = await sharp(mediaPath(result.storedName)).metadata();
 		expect(originalMeta.format).toBe('jpeg');
+		expect([originalMeta.width, originalMeta.height]).toEqual([60, 40]);
+		expect(originalMeta.channels).toBe(3);
+
+		const { derivedName } = await import('./storage');
+		const display = await sharp(mediaPath(derivedName(result.storedName, 'display'))).metadata();
+		expect(display.format).toBe('webp');
+		expect(display.hasAlpha).toBe(false);
 	});
 
 	it('throws a clear MediaError when the HEIC file is not decodable (EC-10)', async () => {
@@ -179,12 +228,12 @@ describe('processPhoto', () => {
 		// No HEIC encoder is available to build a real oversized fixture, so only
 		// the libheif metadata read is stubbed (10000x6000 = 60 MP); the limit
 		// check in processPhoto runs for real.
-		const heicConvert = vi.fn();
+		const decodeHeic = vi.fn();
 		vi.resetModules();
 		vi.doMock('sharp', () => ({
 			default: () => ({ metadata: async () => ({ format: 'heif', width: 10000, height: 6000 }) })
 		}));
-		vi.doMock('heic-convert', () => ({ default: heicConvert }));
+		vi.doMock('./heic', () => ({ decodeHeic }));
 		try {
 			const { processPhoto } = await import('./images');
 			const { MediaError } = await import('./validate');
@@ -192,10 +241,10 @@ describe('processPhoto', () => {
 
 			await expect(processPhoto(fixture, HEIC_SNIFF)).rejects.toThrow(MediaError);
 			await expect(processPhoto(fixture, HEIC_SNIFF)).rejects.toThrow(/Image trop grande/);
-			expect(heicConvert).not.toHaveBeenCalled();
+			expect(decodeHeic).not.toHaveBeenCalled();
 		} finally {
 			vi.doUnmock('sharp');
-			vi.doUnmock('heic-convert');
+			vi.doUnmock('./heic');
 			vi.resetModules();
 		}
 	});
@@ -290,5 +339,24 @@ describe('processPhoto', () => {
 		} finally {
 			writeSpy.mockRestore();
 		}
+	});
+});
+
+describe('generateMissingVariants', () => {
+	it('writes only the missing derived variants and is idempotent', async () => {
+		const { generateMissingVariants, processPhoto } = await import('./images');
+		const { derivedName, mediaPath } = await import('./storage');
+		const result = await processPhoto(path.join(FIXTURES, 'photo-exif-rotated.jpg'), JPEG_SNIFF);
+		const displayPath = mediaPath(derivedName(result.storedName, 'display'));
+		const smallPath = mediaPath(derivedName(result.storedName, 'thumb-sm'));
+		await fs.unlink(smallPath);
+		const displayBefore = await fs.stat(displayPath);
+
+		expect(await generateMissingVariants(result.storedName)).toEqual(['thumb-sm']);
+		const meta = await sharp(smallPath).metadata();
+		expect([meta.format, meta.width, meta.height]).toEqual(['webp', 40, 60]);
+		expect((await fs.stat(displayPath)).mtimeMs).toBe(displayBefore.mtimeMs);
+
+		expect(await generateMissingVariants(result.storedName)).toEqual([]);
 	});
 });

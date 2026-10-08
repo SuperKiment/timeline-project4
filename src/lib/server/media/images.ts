@@ -1,12 +1,17 @@
 import { promises as fs } from 'node:fs';
 import sharp, { type OutputInfo, type Sharp } from 'sharp';
-// heic-convert ships no type declarations.
-// @ts-expect-error - untyped module, see comment above
-import heicConvert from 'heic-convert';
+import { DISPLAY_MAX_EDGE, THUMB_SM_SIZE, THUMB_WIDTH } from '../../media/variants';
+import { decodeHeic, type DecodedHeic } from './heic';
 import { MediaError, type SniffResult } from './validate';
-import { ensureMediaDir, mediaPath, newStoredName, removeMediaFiles } from './storage';
-
-const THUMB_WIDTH = 400;
+import {
+	DERIVED_VARIANTS,
+	derivedName,
+	ensureMediaDir,
+	mediaPath,
+	newStoredName,
+	removeMediaFiles,
+	type DerivedVariant
+} from './storage';
 
 /** Decompression-bomb guard: reject images (or HEIC sources) above this pixel count. */
 const MAX_PIXELS = 50_000_000;
@@ -27,6 +32,33 @@ function encode(pipeline: Sharp, ext: PhotoExt): Sharp {
 	}
 }
 
+/** Encodes the derived variants (see `derivedName`) of an auto-oriented photo. */
+async function encodeDerived(oriented: Sharp): Promise<Record<DerivedVariant, Buffer>> {
+	return {
+		display: await oriented
+			.clone()
+			.resize({
+				width: DISPLAY_MAX_EDGE,
+				height: DISPLAY_MAX_EDGE,
+				fit: 'inside',
+				withoutEnlargement: true
+			})
+			.webp({ quality: 80 })
+			.toBuffer(),
+		// Square crop: the timeline card shows it `object-fit: cover`, centered.
+		'thumb-sm': await oriented
+			.clone()
+			.resize({
+				width: THUMB_SM_SIZE,
+				height: THUMB_SM_SIZE,
+				fit: 'cover',
+				withoutEnlargement: true
+			})
+			.webp({ quality: 70 })
+			.toBuffer()
+	};
+}
+
 export interface ProcessedPhoto {
 	storedName: string;
 	thumbName: string;
@@ -40,7 +72,8 @@ export interface ProcessedPhoto {
 /**
  * Converts (HEIC/HEIF → JPEG), auto-orients (EXIF) and stores a photo: writes
  * the original (JPEG when converted from HEIC, otherwise re-encoded in its
- * native format) plus a {@link THUMB_WIDTH}px-wide WebP thumbnail to `mediaDir`.
+ * native format), a {@link THUMB_WIDTH}px-wide WebP thumbnail and the derived
+ * `display`/`thumb-sm` WebP variants to `mediaDir`.
  *
  * Throws {@link MediaError} with a clear French message when the source is
  * not decodable, too large (decompression-bomb guard, EC-9), or when a HEIC
@@ -66,7 +99,7 @@ export async function processPhoto(tmpPath: string, sniff: SniffResult): Promise
 
 	const isHeic = sniff.ext === 'heic' || sniff.ext === 'heif';
 
-	let sourceBuffer: Buffer;
+	let source: Sharp;
 	let ext: PhotoExt;
 	let storedMime: string;
 
@@ -88,20 +121,24 @@ export async function processPhoto(tmpPath: string, sniff: SniffResult): Promise
 		}
 
 		const heicBuffer = await fs.readFile(tmpPath);
+		let decoded: DecodedHeic;
 		try {
-			const converted: ArrayBuffer = await heicConvert({
-				buffer: heicBuffer,
-				format: 'JPEG',
-				quality: 0.92
-			});
-			sourceBuffer = Buffer.from(converted);
+			// Raw RGBA straight into sharp (worker thread, see decodeHeic): no
+			// intermediate JPEG encode/decode.
+			decoded = await decodeHeic(heicBuffer);
 		} catch {
 			throw new MediaError('HEIC illisible.');
 		}
+		// libheif already applied the HEIF rotation/mirror; there is no EXIF
+		// orientation left to honor. Alpha is dropped (stored as JPEG anyway).
+		source = sharp(decoded.data, {
+			raw: { width: decoded.width, height: decoded.height, channels: 4 },
+			limitInputPixels: MAX_PIXELS
+		}).removeAlpha();
 		ext = 'jpg';
 		storedMime = 'image/jpeg';
 	} else {
-		sourceBuffer = await fs.readFile(tmpPath);
+		source = sharp(await fs.readFile(tmpPath), { limitInputPixels: MAX_PIXELS }).rotate();
 		ext = sniff.ext as PhotoExt;
 		storedMime = sniff.mime;
 	}
@@ -110,20 +147,20 @@ export async function processPhoto(tmpPath: string, sniff: SniffResult): Promise
 	const storedName = newStoredName(ext);
 	const thumbName = newStoredName('webp');
 
-	const oriented = sharp(sourceBuffer, { limitInputPixels: MAX_PIXELS }).rotate();
-
 	let original: { data: Buffer; info: OutputInfo };
 	let thumb: Buffer;
+	let derived: Record<DerivedVariant, Buffer>;
 	try {
-		// Fully decode and re-encode both outputs in memory first: any failure
+		// Fully decode and re-encode all outputs in memory first: any failure
 		// here is unambiguously a decode/encode problem with the source image,
 		// never a filesystem error (F4).
-		original = await encode(oriented.clone(), ext).toBuffer({ resolveWithObject: true });
-		thumb = await oriented
+		original = await encode(source.clone(), ext).toBuffer({ resolveWithObject: true });
+		thumb = await source
 			.clone()
 			.resize({ width: THUMB_WIDTH, withoutEnlargement: true })
 			.webp({ quality: 80 })
 			.toBuffer();
+		derived = await encodeDerived(source);
 	} catch (err) {
 		if (err instanceof Error && /pixel limit/i.test(err.message)) {
 			throw new MediaError('Image trop grande.');
@@ -138,6 +175,9 @@ export async function processPhoto(tmpPath: string, sniff: SniffResult): Promise
 		// to `MediaError('Image illisible.')`.
 		await fs.writeFile(mediaPath(storedName), original.data);
 		await fs.writeFile(mediaPath(thumbName), thumb);
+		for (const variant of DERIVED_VARIANTS) {
+			await fs.writeFile(mediaPath(derivedName(storedName, variant)), derived[variant]);
+		}
 	} catch (err) {
 		await removeMediaFiles({ storedName, thumbName });
 		throw err;
@@ -150,4 +190,33 @@ export async function processPhoto(tmpPath: string, sniff: SniffResult): Promise
 		width: original.info.width,
 		height: original.info.height
 	};
+}
+
+/**
+ * Writes the derived variants missing on disk for an already-stored photo
+ * (uploaded before they existed), from its stored original. Idempotent:
+ * returns the variants actually written (empty when none was missing).
+ * Each file is written under a temporary name then renamed, so an
+ * interrupted run never leaves a truncated variant that looks complete.
+ */
+export async function generateMissingVariants(storedName: string): Promise<DerivedVariant[]> {
+	const missing: DerivedVariant[] = [];
+	for (const variant of DERIVED_VARIANTS) {
+		try {
+			await fs.access(mediaPath(derivedName(storedName, variant)));
+		} catch {
+			missing.push(variant);
+		}
+	}
+	if (missing.length === 0) return [];
+
+	const derived = await encodeDerived(
+		sharp(mediaPath(storedName), { limitInputPixels: MAX_PIXELS }).rotate()
+	);
+	for (const variant of missing) {
+		const target = mediaPath(derivedName(storedName, variant));
+		await fs.writeFile(`${target}.tmp`, derived[variant]);
+		await fs.rename(`${target}.tmp`, target);
+	}
+	return missing;
 }

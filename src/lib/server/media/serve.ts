@@ -4,10 +4,10 @@ import { Readable } from 'node:stream';
 import { eq } from 'drizzle-orm';
 import type { Db } from '../db';
 import { entries, journalEntries, media, occurrenceNotes } from '../db/schema';
-import { mediaPath } from './storage';
+import { derivedName, mediaPath } from './storage';
 
-/** The three file variants a media row may be served as (T17/T18). */
-export const VARIANTS = ['original', 'thumb', 'poster'] as const;
+/** The file variants a media row may be served as (T17/T18, plus the derived photo variants). */
+export const VARIANTS = ['original', 'thumb', 'poster', 'display', 'thumb-sm'] as const;
 export type Variant = (typeof VARIANTS)[number];
 
 const NOT_FOUND = () => new Response(null, { status: 404 });
@@ -62,15 +62,36 @@ function ownerVisible(db: Db, row: MediaRow): boolean {
 	return false;
 }
 
-/** The on-disk file name and MIME type to serve for a given variant, or `null` if that variant doesn't exist for this row. */
-function variantFile(row: MediaRow, variant: Variant): { name: string; mime: string } | null {
+interface VariantFile {
+	name: string;
+	mime: string;
+}
+
+/**
+ * The on-disk files that may serve `variant` for this row, best first: a
+ * derived photo variant missing on disk (media stored before it existed,
+ * see `derivedName`) falls back to the next larger one, ending with the
+ * original. Empty when the variant doesn't exist for this row (e.g. a
+ * `thumb` for a video).
+ */
+function variantFiles(row: MediaRow, variant: Variant): VariantFile[] {
+	const original = { name: row.storedName, mime: row.mime };
+	const thumb = row.thumbName ? [{ name: row.thumbName, mime: 'image/webp' }] : [];
+	const derived = (name: 'display' | 'thumb-sm') => ({
+		name: derivedName(row.storedName, name),
+		mime: 'image/webp'
+	});
 	switch (variant) {
 		case 'original':
-			return { name: row.storedName, mime: row.mime };
+			return [original];
 		case 'thumb':
-			return row.thumbName ? { name: row.thumbName, mime: 'image/webp' } : null;
+			return thumb;
 		case 'poster':
-			return row.posterName ? { name: row.posterName, mime: 'image/jpeg' } : null;
+			return row.posterName ? [{ name: row.posterName, mime: 'image/jpeg' }] : [];
+		case 'display':
+			return row.kind === 'photo' ? [derived('display'), original] : [];
+		case 'thumb-sm':
+			return row.kind === 'photo' ? [derived('thumb-sm'), ...thumb, original] : [];
 	}
 }
 
@@ -134,9 +155,9 @@ function parseRange(rangeHeader: string | null, size: number): ByteRange | 'unsa
  * exclusively via {@link mediaPath} (never a client-supplied path, NFR-4)
  * and returns 404 for a missing row, a soft-deleted media row, a
  * soft-deleted owner (EC-16), or a variant this row doesn't have (e.g. a
- * `thumb` for a video). Authentication/authorization for the route itself
- * is enforced by the hooks guard (T9); this function only decides
- * visibility of the media row.
+ * `thumb` for a video) or whose files are all missing on disk.
+ * Authentication/authorization for the route itself is enforced by the
+ * hooks guard (T9); this function only decides visibility of the media row.
  */
 export async function serveMedia(
 	db: Db,
@@ -152,24 +173,22 @@ export async function serveMedia(
 		return NOT_FOUND();
 	}
 
-	const file = variantFile(row, variant);
-	if (!file) {
+	// Serve the first candidate present on disk (see variantFiles).
+	const candidates = variantFiles(row, variant);
+	let served: { file: VariantFile; filePath: string; stat: fs.Stats } | undefined;
+	for (const file of candidates) {
+		try {
+			const filePath = mediaPath(file.name);
+			served = { file, filePath, stat: await fsPromises.stat(filePath) };
+			break;
+		} catch {
+			// Invalid name or missing file: try the next candidate.
+		}
+	}
+	if (!served) {
 		return NOT_FOUND();
 	}
-
-	let filePath: string;
-	try {
-		filePath = mediaPath(file.name);
-	} catch {
-		return NOT_FOUND();
-	}
-
-	let stat: fs.Stats;
-	try {
-		stat = await fsPromises.stat(filePath);
-	} catch {
-		return NOT_FOUND();
-	}
+	const { file, filePath, stat } = served;
 
 	const size = stat.size;
 	const range = parseRange(rangeHeader, size);
@@ -177,7 +196,10 @@ export async function serveMedia(
 	const headers = new Headers({
 		'Content-Type': file.mime,
 		'Accept-Ranges': 'bytes',
-		'Cache-Control': 'private, max-age=31536000, immutable'
+		// A fallback is cached briefly only, so the real variant is picked up
+		// once `npm run media:backfill` has generated it.
+		'Cache-Control':
+			file !== candidates[0] ? 'private, max-age=86400' : 'private, max-age=31536000, immutable'
 	});
 
 	if (range === 'unsatisfiable') {

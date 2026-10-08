@@ -37,7 +37,7 @@ export interface TimelineItem {
 	occurrenceDate?: string;
 	/** Present on `occurrence` items: whether that occurrence has a non-empty note. */
 	hasNote?: boolean;
-	/** `/media/<id>/thumb` of the first visible photo, or `null` when none. */
+	/** `/media/<id>/thumb-sm` of the first visible photo, or `null` when none. */
 	thumbUrl: string | null;
 	location: string | null;
 }

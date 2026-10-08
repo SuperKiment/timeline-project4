@@ -136,7 +136,7 @@ export function getTimeline(db: Db, { types, today }: GetTimelineOptions): Timel
 						seriesId: row.id,
 						occurrenceDate: date,
 						hasNote: Boolean(note?.note && note.note.trim() !== ''),
-						thumbUrl: thumbId !== undefined ? `/media/${thumbId}/thumb` : null,
+						thumbUrl: thumbId !== undefined ? `/media/${thumbId}/thumb-sm` : null,
 						location: row.location
 					},
 					createdAt: row.createdAt
@@ -156,7 +156,7 @@ export function getTimeline(db: Db, { types, today }: GetTimelineOptions): Timel
 					endSort: row.endSort,
 					endPrecision: row.endPrecision,
 					ongoing: isOngoing(row.type, row.endSort),
-					thumbUrl: thumbId !== undefined ? `/media/${thumbId}/thumb` : null,
+					thumbUrl: thumbId !== undefined ? `/media/${thumbId}/thumb-sm` : null,
 					location: row.location
 				},
 				createdAt: row.createdAt

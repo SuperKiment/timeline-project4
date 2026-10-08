@@ -316,6 +316,46 @@ describe('serveMedia', () => {
 		const res = await serveMedia(db, id, 'thumb', null);
 
 		expect(res.status).toBe(404);
+		// Derived photo variants don't exist for videos either.
+		expect((await serveMedia(db, id, 'display', null)).status).toBe(404);
+		expect((await serveMedia(db, id, 'thumb-sm', null)).status).toBe(404);
+	});
+
+	it('serves the derived display variant when present on disk', async () => {
+		const { serveMedia } = await import('./serve');
+		const db = createTestDb();
+		const entryId = insertEntry(db);
+		await insertMediaFile('original.jpg', Buffer.from('abc'));
+		await insertMediaFile('original-display.webp', Buffer.from('display'));
+		const id = insertMediaRow(db, { entryId });
+
+		const res = await serveMedia(db, id, 'display', null);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get('Content-Type')).toBe('image/webp');
+		expect(res.headers.get('Cache-Control')).toBe('private, max-age=31536000, immutable');
+		expect(await res.text()).toBe('display');
+	});
+
+	it('falls back to the next larger variant when a derived one is missing, cached briefly', async () => {
+		const { serveMedia } = await import('./serve');
+		const db = createTestDb();
+		const entryId = insertEntry(db);
+		await insertMediaFile('original.jpg', Buffer.from('original'));
+		await insertMediaFile('thumb.webp', Buffer.from('thumb'));
+		const withThumb = insertMediaRow(db, { entryId }, { thumbName: 'thumb.webp' });
+		const withoutThumb = insertMediaRow(db, { entryId });
+
+		const display = await serveMedia(db, withThumb, 'display', null);
+		expect(display.headers.get('Content-Type')).toBe('image/jpeg');
+		expect(display.headers.get('Cache-Control')).toBe('private, max-age=86400');
+		expect(await display.text()).toBe('original');
+
+		const small = await serveMedia(db, withThumb, 'thumb-sm', null);
+		expect(small.headers.get('Content-Type')).toBe('image/webp');
+		expect(await small.text()).toBe('thumb');
+
+		expect(await (await serveMedia(db, withoutThumb, 'thumb-sm', null)).text()).toBe('original');
 	});
 
 	it('returns 404 when the row references a file missing from disk', async () => {

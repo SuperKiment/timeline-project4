@@ -13,20 +13,28 @@ const OWNER_COLUMN = {
 } as const;
 
 /** Fields of a media row needed to build its client-safe `MediaItem`. */
-type MediaRowLike = Pick<typeof media.$inferSelect, 'id' | 'kind' | 'thumbName' | 'posterName'>;
+type MediaRowLike = Pick<
+	typeof media.$inferSelect,
+	'id' | 'kind' | 'thumbName' | 'posterName' | 'width' | 'height'
+>;
 
 /**
  * Builds the client-safe `MediaItem` for a media row. Photos use the thumbnail,
  * videos the poster; a video without a poster gets an empty `thumbUrl`.
  */
 export function toMediaItem(row: MediaRowLike): MediaItem {
-	const hasThumb = row.kind === 'photo' ? row.thumbName !== null : row.posterName !== null;
-	const thumbKind = row.kind === 'photo' ? 'thumb' : 'poster';
+	const isPhoto = row.kind === 'photo';
+	const hasThumb = isPhoto ? row.thumbName !== null : row.posterName !== null;
+	const thumbKind = isPhoto ? 'thumb' : 'poster';
+	const url = `/media/${row.id}/original`;
 	return {
 		id: row.id,
 		kind: row.kind,
 		thumbUrl: hasThumb ? `/media/${row.id}/${thumbKind}` : '',
-		url: `/media/${row.id}/original`
+		displayUrl: isPhoto ? `/media/${row.id}/display` : url,
+		url,
+		width: row.width,
+		height: row.height
 	};
 }
 
@@ -52,7 +60,9 @@ export function listMediaByOwner(
 			id: media.id,
 			kind: media.kind,
 			thumbName: media.thumbName,
-			posterName: media.posterName
+			posterName: media.posterName,
+			width: media.width,
+			height: media.height
 		})
 		.from(media)
 		.where(and(inArray(column, ids), isNull(media.deletedAt)))

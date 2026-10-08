@@ -124,6 +124,8 @@ npm start        # node build
 
 Déploiement sur Raspberry Pi (systemd, HTTPS sur LAN, sauvegardes) : voir [docs/DEPLOY-RPI.md](docs/DEPLOY-RPI.md).
 
+Chaque photo est stockée en plusieurs tailles : l'original (téléchargement), `display` (visionneuse, 2048 px max, WebP), `thumb` (galerie) et `thumb-sm` (cartes de la frise). Après une mise à jour, `npm run media:backfill` génère les tailles manquantes des photos déjà envoyées (idempotent).
+
 ## Limites d'envoi
 
 500 Mo par fichier et par requête, 50 Mo par photo, 20 fichiers par envoi. Ces limites sont appliquées par l'application (`BODY_SIZE_LIMIT=Infinity` désactive celle d'adapter-node).
