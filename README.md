@@ -93,6 +93,8 @@ npm run test:e2e              # tests de bout en bout (Playwright)
 
 `npm run test:e2e` construit l'application, prépare une base jetable dans `.e2e-data/` (deux comptes de test, seed) puis lance le serveur sur le port 4173. Les projets `desktop` (Chrome) et `mobile` (Pixel 7) sont exécutés. Vos données de `data/` ne sont pas touchées.
 
+Sur GitHub, la CI (`.github/workflows/ci.yml`) lance ces vérifications, le build et les tests e2e à chaque pull request et à chaque push sur `master`.
+
 ## Sauvegarde et export
 
 ```sh

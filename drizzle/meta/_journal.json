@@ -15,6 +15,13 @@
 			"when": 1790024206528,
 			"tag": "0001_fts5",
 			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "6",
+			"when": 1791453530953,
+			"tag": "0002_journal_day_idx",
+			"breakpoints": true
 		}
 	]
 }

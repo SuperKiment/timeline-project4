@@ -1,0 +1,1 @@
+CREATE INDEX `journal_entries_day_idx` ON `journal_entries` (`day`) WHERE "journal_entries"."deleted_at" is null;
