@@ -5,25 +5,34 @@
 	import TypeFilters from '$lib/components/timeline/TypeFilters.svelte';
 	import VerticalTimeline from '$lib/components/timeline/VerticalTimeline.svelte';
 	import ViewToggle from '$lib/components/timeline/ViewToggle.svelte';
-	import { loadView, saveView, type TimelineView } from '$lib/timeline/prefs';
+	import { initialView, viewCookie, type TimelineView } from '$lib/timeline/prefs';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	// `null` until mounted: the saved/default view is only known in the browser,
-	// so nothing view-specific is rendered before that (no wrong-layout flash).
-	let view = $state<TimelineView | null>(null);
+	// The server renders the cookie's view. Without a cookie it renders the
+	// vertical (mobile) one and the browser picks the real one once, on mount.
+	let chosen = $state<TimelineView | null>(null);
+	const view = $derived(chosen ?? data.view ?? 'vertical');
+	// The toggle does nothing before hydration: flagged (aria-)disabled until
+	// then, without the dimmed `:disabled` look flashing on every load.
+	let hydrated = $state(false);
 
 	onMount(() => {
-		view = loadView(
-			() => localStorage,
-			(query) => window.matchMedia(query)
-		);
+		if (!data.view) {
+			chooseView(
+				initialView(
+					() => localStorage,
+					(query) => window.matchMedia(query)
+				)
+			);
+		}
+		hydrated = true;
 	});
 
 	function chooseView(next: TimelineView) {
-		view = next;
-		saveView(next, () => localStorage);
+		chosen = next;
+		document.cookie = viewCookie(next);
 	}
 </script>
 
@@ -46,16 +55,14 @@
 	{:else}
 		<div class="controls">
 			<TypeFilters selected={data.types} />
-			{#if view}
-				<ViewToggle {view} onchange={chooseView} />
-			{/if}
+			<ViewToggle {view} disabled={!hydrated} onchange={chooseView} />
 		</div>
 
 		{#if data.items.length === 0}
 			<p class="no-match">Aucun élément pour ces filtres.</p>
 		{:else if view === 'horizontal'}
 			<HorizontalTimeline items={data.items} today={data.today} />
-		{:else if view === 'vertical'}
+		{:else}
 			<VerticalTimeline items={data.items} today={data.today} />
 		{/if}
 	{/if}

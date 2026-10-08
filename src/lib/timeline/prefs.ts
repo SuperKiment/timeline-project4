@@ -2,27 +2,32 @@ import { ENTRY_TYPES, type EntryType } from './types';
 
 export type TimelineView = 'vertical' | 'horizontal';
 
+/** Cookie holding the chosen view, so the home page is rendered with it on the server. */
+export const VIEW_COOKIE = 'timeline_view';
+const VIEW_COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
+
+/** Where the choice was stored before the cookie; only read to migrate it. */
 export const VIEW_STORAGE_KEY = 'timeline.view';
 export const DESKTOP_MEDIA_QUERY = '(min-width: 1024px)';
 
-/** Minimal `Storage` surface used here, so tests can inject a fake. */
+/** Minimal read-only `Storage` surface used here, so tests can inject a fake. */
 export interface ViewStorage {
 	getItem(key: string): string | null;
-	setItem(key: string, value: string): void;
 }
 
 /**
  * Lazy storage accessor. Reading `window.localStorage` itself can throw
  * (SecurityError when storage is blocked), so it must be resolved inside
- * the try/catch of the callers below.
+ * the try/catch of `initialView`.
  */
 export type ViewStorageAccessor = () => ViewStorage;
 
 /** Minimal `window.matchMedia` surface used here, so tests can inject a fake. */
 export type MatchMediaFn = (query: string) => { matches: boolean };
 
-function isView(value: unknown): value is TimelineView {
-	return value === 'vertical' || value === 'horizontal';
+/** A stored view value, or `null` when absent or unknown. */
+export function parseView(value: string | null | undefined): TimelineView | null {
+	return value === 'vertical' || value === 'horizontal' ? value : null;
 }
 
 /** Horizontal on wide screens (>= 1024px), vertical otherwise or when unknown (SSR). */
@@ -31,26 +36,26 @@ export function defaultView(matchMedia?: MatchMediaFn): TimelineView {
 }
 
 /**
- * Saved choice from storage, else the screen-size default. Storage errors
- * (private mode, disabled storage) and unknown stored values are ignored.
+ * View for a browser without the cookie yet: the choice saved in storage by
+ * earlier versions, else the screen-size default. Storage errors (private
+ * mode, disabled storage) and unknown stored values are ignored.
  */
-export function loadView(getStorage: ViewStorageAccessor, matchMedia: MatchMediaFn): TimelineView {
+export function initialView(
+	getStorage: ViewStorageAccessor,
+	matchMedia: MatchMediaFn
+): TimelineView {
 	try {
-		const stored = getStorage().getItem(VIEW_STORAGE_KEY);
-		if (isView(stored)) return stored;
+		const stored = parseView(getStorage().getItem(VIEW_STORAGE_KEY));
+		if (stored) return stored;
 	} catch {
 		// fall through to the default
 	}
 	return defaultView(matchMedia);
 }
 
-/** Persists the choice; silently does nothing when storage is unavailable. */
-export function saveView(view: TimelineView, getStorage: ViewStorageAccessor): void {
-	try {
-		getStorage().setItem(VIEW_STORAGE_KEY, view);
-	} catch {
-		// non-fatal: the choice just won't persist
-	}
+/** `document.cookie` assignment persisting the choice for a year. */
+export function viewCookie(view: TimelineView): string {
+	return `${VIEW_COOKIE}=${view}; Path=/; Max-Age=${VIEW_COOKIE_MAX_AGE}; SameSite=Lax`;
 }
 
 /**
